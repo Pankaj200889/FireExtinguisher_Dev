@@ -13,7 +13,7 @@ from auth import get_admin_user, get_current_user
 
 router = APIRouter(prefix="/extinguishers", tags=["extinguishers"])
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://fire-extinguisher-dev.vercel.app")
 
 class ExtinguisherCreate(BaseModel):
     sl_no: str
