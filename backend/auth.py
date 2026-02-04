@@ -84,21 +84,29 @@ async def get_optional_current_user(token: Optional[str] = Depends(oauth2_scheme
 from fastapi import Request
 async def get_optional_current_user(request: Request, session: Session = Depends(get_session)) -> Optional[User]:
     token = request.headers.get("Authorization")
+    print(f"AUTH DEBUG: Raw Header: {token}")
+    
     if not token:
+        print("AUTH DEBUG: No Token Header")
         return None
     
     try:
         scheme, _, param = token.partition(" ")
         if scheme.lower() != "bearer":
+            print(f"AUTH DEBUG: Invalid Scheme {scheme}")
             return None
         
         payload = jwt.decode(param, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
+        print(f"AUTH DEBUG: Decoded User: {username}")
+        
         if username is None:
             return None
             
         statement = select(User).where(User.username == username)
         user = session.exec(statement).first()
+        print(f"AUTH DEBUG: DB User Found: {user.username if user else 'None'}")
         return user
-    except (JWTError, Exception):
+    except (JWTError, Exception) as e:
+        print(f"AUTH DEBUG: Exception {str(e)}")
         return None
