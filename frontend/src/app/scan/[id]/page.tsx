@@ -31,14 +31,14 @@ export default function ScanRouterPage() {
                 const role = user.role.toLowerCase();
                 if (role === 'inspector' || role === 'admin') {
                     setStatus("Verifying Inspector Access...");
-                    router.replace(`/inspect/${id}`);
+                    window.location.href = `/inspect/${id}`;
                 } else {
                     // Logged in but not inspector (e.g. Auditor/Guest account??) -> Public View
-                    router.replace(`/extinguisher/${id}`);
+                    window.location.href = `/extinguisher/${id}`;
                 }
             } else if (!token && !isAuthenticated) {
                 // Fallback double check
-                router.replace(`/extinguisher/${id}`);
+                window.location.href = `/extinguisher/${id}`;
             }
         };
 
@@ -61,6 +61,13 @@ export default function ScanRouterPage() {
                     <div className="flex items-center space-x-2">
                         <Loader2 className="h-4 w-4 text-slate-400 animate-spin" />
                         <p className="text-sm text-slate-400">{status}</p>
+                    </div>
+                    {/* DEBUG OVERLAY */}
+                    <div className="mt-4 text-[10px] text-slate-500 font-mono text-left bg-black p-2 rounded w-full">
+                        <p>Auth: {isAuthenticated ? 'Yes' : 'No'}</p>
+                        <p>User: {user ? user.username : 'None'}</p>
+                        <p>Role: {user ? user.role : 'None'}</p>
+                        <p>Token: {typeof window !== 'undefined' ? (localStorage.getItem('token') ? 'Found' : 'Missing') : 'SSR'}</p>
                     </div>
                 </div>
             </div>
