@@ -4,7 +4,13 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { MapPin, Info, Calendar, ArrowRight, User, AlertCircle, CheckCircle, Lock } from 'lucide-react';
-import InspectionForm from '@/components/InspectionForm';
+import dynamic from 'next/dynamic';
+
+// Dynamic import to avoid SSR issues with Signature Canvas
+const InspectionForm = dynamic(() => import('@/components/InspectionForm'), {
+    ssr: false,
+    loading: () => <p className="text-center py-4">Loading Form...</p>
+});
 
 interface Extinguisher {
     id: string;
