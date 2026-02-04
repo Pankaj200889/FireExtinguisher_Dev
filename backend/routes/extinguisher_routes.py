@@ -7,6 +7,8 @@ import qrcode
 import os
 from database import get_session
 from models import Extinguisher, User, Inspection
+from pydantic import BaseModel
+import uuid
 
 router = APIRouter(prefix="/extinguishers", tags=["extinguishers"])
 
