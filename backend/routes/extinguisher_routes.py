@@ -33,7 +33,41 @@ class ExtinguisherRead(ExtinguisherCreate):
     lastInspectionAt: Optional[str] = None
     debug_info: Optional[str] = None
 
-# ... (skip to read_extinguisher)
+    debug_info: Optional[str] = None
+
+@router.post("/", response_model=ExtinguisherRead)
+async def create_extinguisher(
+    extinguisher: ExtinguisherCreate, 
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_admin_user)
+):
+    # Check uniqueness of Sl No
+    existing = session.exec(select(Extinguisher).where(Extinguisher.sl_no == extinguisher.sl_no)).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Extinguisher with this Serial Number already exists.")
+    
+    db_obj = Extinguisher(**extinguisher.model_dump())
+    session.add(db_obj)
+    session.commit()
+    session.refresh(db_obj)
+    
+    # Generate QR URL (Public Access Link)
+    # The QR code will point to the NEW unified page
+    db_obj.qr_code_url = f"{FRONTEND_URL}/extinguisher/{db_obj.id}"
+    session.add(db_obj)
+    session.commit()
+    session.refresh(db_obj)
+    
+    return db_obj
+
+@router.get("/", response_model=List[ExtinguisherRead])
+async def read_extinguishers(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    extinguishers = session.exec(select(Extinguisher)).all()
+    return extinguishers
+
 
 @router.get("/{id}", response_model=ExtinguisherRead)
 async def read_extinguisher(
