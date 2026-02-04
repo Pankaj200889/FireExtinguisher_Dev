@@ -1,0 +1,48 @@
+from fastapi import FastAPI
+from database import init_db
+from contextlib import asynccontextmanager
+from routes import auth_routes, extinguisher_routes, upload_routes, inspection_routes, websocket_routes
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    init_db()
+    yield
+    # Shutdown
+    pass
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(
+    title="Fire Extinguisher Management System",
+    description="API for managing fire safety compliance (IS 2190:2024)",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth_routes.router)
+app.include_router(extinguisher_routes.router)
+app.include_router(upload_routes.router)
+app.include_router(inspection_routes.router)
+app.include_router(websocket_routes.router)
+
+from fastapi.staticfiles import StaticFiles
+import os
+os.makedirs("backend/uploads", exist_ok=True)
+app.mount("/static", StaticFiles(directory="backend/uploads"), name="static")
+
+@app.get("/")
+def read_root():
+    return {"message": "Fire Extinguisher API is running", "status": "active"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
