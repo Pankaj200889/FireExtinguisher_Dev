@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+let API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+// Enforce HTTPS if not localhost
+if (API_URL !== 'http://localhost:8000' && !API_URL.startsWith('http')) {
+    API_URL = `https://${API_URL}`;
+}
+
 console.log('Current API URL:', API_URL);
 
 const api = axios.create({
