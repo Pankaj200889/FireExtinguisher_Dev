@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import api from '@/lib/api';
+import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Printer } from 'lucide-react';
 
@@ -24,7 +25,11 @@ export default function NewExtinguisherPage() {
             setQrCode(qrUrl);
         } catch (error) {
             console.error("Error creating extinguisher", error);
-            alert("Failed to create extinguisher. Ensure Sl No is unique.");
+            if (axios.isAxiosError(error) && error.response) {
+                alert(`Error: ${error.response.data.detail}`);
+            } else {
+                alert("Failed to create extinguisher. Ensure Sl No is unique.");
+            }
         } finally {
             setLoading(false);
         }

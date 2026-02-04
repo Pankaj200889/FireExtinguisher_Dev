@@ -64,7 +64,10 @@ export default function AdminDashboard() {
                             <span className="ml-2 text-xl font-bold text-gray-900">Fire Safety Admin</span>
                         </div>
                         <div className="flex items-center space-x-4">
-                            <span className="text-gray-700">Welcome, {user?.username}</span>
+                            <div className="flex flex-col items-end mr-2">
+                                <span className="text-sm font-medium text-gray-900">{user?.username}</span>
+                                <span className="text-xs text-gray-500 uppercase bg-gray-100 px-2 py-0.5 rounded-full">{user?.role}</span>
+                            </div>
                             <button
                                 onClick={logout}
                                 className="p-2 rounded-full hover:bg-gray-100 text-gray-500"

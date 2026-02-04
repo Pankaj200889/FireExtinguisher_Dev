@@ -7,8 +7,6 @@ if (API_URL !== 'http://localhost:8000' && !API_URL.startsWith('http')) {
     API_URL = `https://${API_URL}`;
 }
 
-console.log('Current API URL:', API_URL);
-
 const api = axios.create({
     baseURL: API_URL,
     headers: {
