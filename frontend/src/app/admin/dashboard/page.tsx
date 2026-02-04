@@ -69,7 +69,7 @@ export default function AdminDashboard() {
                                 <span className="text-xs text-gray-500 uppercase bg-gray-100 px-2 py-0.5 rounded-full">{user?.role}</span>
                             </div>
                             <button
-                                onClick={logout}
+                                onClick={() => logout()}
                                 className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
                                 title="Logout"
                             >
