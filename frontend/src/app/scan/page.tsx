@@ -22,20 +22,29 @@ export default function QRScannerPage() {
             scanner.clear();
             setScanResult(decodedText);
 
-            // Logic to handle URL
-            // Expected URL: https://app.com/extinguisher/{uuid}
+            // Extract UUID from URL or Text
+            let extinguisherId = decodedText;
             try {
                 const url = new URL(decodedText);
                 const pathParts = url.pathname.split('/');
-                // Logic: if URL is like /extinguishers/UUID, redirect there
-                // We'll just assume the text IS the full URL
-                window.location.href = decodedText;
+                // Assumes URL structure like /extinguisher/{uuid}
+                const possibleId = pathParts[pathParts.length - 1];
+                if (possibleId) extinguisherId = possibleId;
             } catch (e) {
-                // Not a URL? Maybe just UUID?
-                console.log("Scanned text is not a URL:", decodedText);
-                // If it's just a UUID, redirect manually
-                router.push(`/extinguisher/${decodedText}`);
+                // Not a valid URL, assume raw UUID
+                console.log("Not a URL, using raw text");
             }
+
+            // Redirect Logic
+            if (user?.role === 'admin' || user?.role === 'inspector') {
+                // Go to INSPECTION page
+                router.push(`/inspect/${extinguisherId}`);
+            } else {
+                // Go to PUBLIC STATUS page
+                // If it was a full URL, we could just follow it, but router.push is safer for SPA
+                router.push(`/extinguisher/${extinguisherId}`);
+            }
+
         }, (error) => {
             // console.warn(error);
         });
@@ -45,7 +54,7 @@ export default function QRScannerPage() {
                 console.error("Failed to clear html5-qrcode scanner. ", error);
             });
         };
-    }, [router]);
+    }, [router, user]);
 
     return (
         <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4">

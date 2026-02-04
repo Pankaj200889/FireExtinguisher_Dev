@@ -177,8 +177,8 @@ export default function InspectionPage() {
                             type="file"
                             ref={fileInputRef}
                             className="hidden"
-                            multiple
                             accept="image/*"
+                            capture="environment"
                             onChange={handleFileSelect}
                         />
                         <p className="text-xs text-gray-500">Capture Tube, Valve, Pressure Gauge, etc.</p>
