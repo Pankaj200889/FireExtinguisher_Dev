@@ -8,6 +8,7 @@ from routes import auth_routes, extinguisher_routes, upload_routes, inspection_r
 async def lifespan(app: FastAPI):
     # Startup
     init_db()
+    print("🚀 System Startup: Annex H PDF & Audit Logs Active")
     yield
     # Shutdown
     pass
