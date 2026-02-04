@@ -14,7 +14,7 @@ interface User {
 interface AuthContextType {
     user: User | null;
     login: (token: string) => void;
-    logout: () => void;
+    logout: (shouldRedirect?: boolean) => void;
     isAuthenticated: boolean;
     isLoading: boolean;
 }
@@ -34,7 +34,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 // Check if token is expired
                 const exp = (decoded as any).exp;
                 if (exp * 1000 < Date.now()) {
-                    logout();
+                    localStorage.removeItem('token');
+                    setUser(null);
+                    // Do not redirect here, let the page decide
                 } else {
                     setUser(decoded);
                 }
@@ -58,10 +60,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    const logout = () => {
+    const logout = (shouldRedirect = true) => {
         localStorage.removeItem('token');
         setUser(null);
-        router.push('/login');
+        if (shouldRedirect) router.push('/login');
     };
 
     return (
