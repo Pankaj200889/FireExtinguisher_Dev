@@ -8,8 +8,17 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function QRScannerPage() {
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, isLoading } = useAuth();
     const [scanResult, setScanResult] = useState<string | null>(null);
+
+    // Refs to hold latest state for the scanner callback (avoid stale closures)
+    const userRef = React.useRef(user);
+    const isLoadingRef = React.useRef(isLoading);
+
+    useEffect(() => {
+        userRef.current = user;
+        isLoadingRef.current = isLoading;
+    }, [user, isLoading]);
 
     useEffect(() => {
         const scanner = new Html5QrcodeScanner(
@@ -19,29 +28,33 @@ export default function QRScannerPage() {
         );
 
         scanner.render((decodedText, decodedResult) => {
+            // Check if auth is still loading to prevent premature public redirect
+            if (isLoadingRef.current) {
+                console.log("Auth loading, ignoring scan...");
+                return;
+            }
+
             scanner.clear();
             setScanResult(decodedText);
 
-            // Extract UUID from URL or Text
+            // Extract UUID
             let extinguisherId = decodedText;
             try {
                 const url = new URL(decodedText);
                 const pathParts = url.pathname.split('/');
-                // Assumes URL structure like /extinguisher/{uuid}
                 const possibleId = pathParts[pathParts.length - 1];
                 if (possibleId) extinguisherId = possibleId;
             } catch (e) {
-                // Not a valid URL, assume raw UUID
                 console.log("Not a URL, using raw text");
             }
 
+            const currentUser = userRef.current;
+            console.log("Scan Logic -> User Role:", currentUser?.role);
+
             // Redirect Logic
-            if (user?.role === 'admin' || user?.role === 'inspector') {
-                // Go to INSPECTION page
+            if (currentUser?.role === 'admin' || currentUser?.role === 'inspector') {
                 router.push(`/inspect/${extinguisherId}`);
             } else {
-                // Go to PUBLIC STATUS page
-                // If it was a full URL, we could just follow it, but router.push is safer for SPA
                 router.push(`/extinguisher/${extinguisherId}`);
             }
 
@@ -54,7 +67,7 @@ export default function QRScannerPage() {
                 console.error("Failed to clear html5-qrcode scanner. ", error);
             });
         };
-    }, [router, user]);
+    }, [router]); // Only run once on mount (refs handle updates)
 
     return (
         <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4">
