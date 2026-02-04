@@ -68,44 +68,87 @@ async def export_excel(session: Session = Depends(get_session)):
 
 @router.get("/export/pdf")
 async def export_pdf(session: Session = Depends(get_session)):
-    """Export Annex H Register as PDF."""
+    """Export Annex H Register as PDF (IS 2190 Compliance)."""
     
     extinguishers = session.exec(select(Extinguisher)).all()
     
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter))
+    # Use Legal Landscape for more width
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=10, leftMargin=10, topMargin=10, bottomMargin=10)
     elements = []
     
-    # Title
     styles = getSampleStyleSheet()
-    title = Paragraph("Annex H - Register of Fire Extinguishers", styles['Title'])
-    elements.append(title)
-    elements.append(Spacer(1, 20))
+    title_style = styles['Title']
+    title_style.fontSize = 14
+    title = Paragraph("ANNEX H - REGISTER OF FIRE EXTINGUISHER", title_style)
+    subtitle = Paragraph("(Clauses 12 and 13)", styles['Normal'])
+    subtitle.alignment = 1 # Center
     
-    # Table Data
-    data = [["Sl No.", "Type", "Capacity", "Make", "Year", "Location", "Remarks"]]
+    elements.append(title)
+    elements.append(subtitle)
+    elements.append(Spacer(1, 15))
+    
+    # Columns based on Image
+    # 1. Sl No, 2. Type, 3. Capacity, 4. Year, 5. Make, 6. Location, 7. Quarterly Dates, 8. Annual Dates, 9. Pressure Test, 10. Discharge, 11. Refilled, 12. Due Refill, 13. Remarks
+    headers = [
+        "Sl No.", "Type", "Cap.", "Year", "Make", "Location", 
+        "Quarterly\nInspection", "Annual\nInspection", "Pressure\nTested", "Date of\nDischarge", "Refilled\nOn", "Due for\nRefill", "Remarks"
+    ]
+    
+    data = [headers]
     
     for ext in extinguishers:
+        # Fetch Inspections
+        inspections = session.exec(select(Inspection).where(Inspection.extinguisher_id == ext.id)).all()
+        
+        # Logic to find latest dates
+        quarterly_dates = [i.inspection_date.strftime("%d-%m-%y") for i in inspections if i.inspection_type == "Quarterly"]
+        annual_dates = [i.inspection_date.strftime("%d-%m-%y") for i in inspections if i.inspection_type == "Annual"]
+        
+        # Pressure Test (Find latest non-null)
+        pressure_test = next((i.pressure_tested_on.strftime("%d-%m-%y") for i in sorted(inspections, key=lambda x: x.inspection_date, reverse=True) if i.pressure_tested_on), "-")
+        
+        # Last Refill
+        refilled_on = next((i.refilled_on.strftime("%d-%m-%y") for i in sorted(inspections, key=lambda x: x.inspection_date, reverse=True) if i.refilled_on), "-")
+        
+        # Due Refill
+        due_refill = next((i.due_for_refilling.strftime("%d-%m-%y") for i in sorted(inspections, key=lambda x: x.inspection_date, reverse=True) if i.due_for_refilling), "-")
+        
+        # Discharge
+        discharge = next((i.date_of_discharge.strftime("%d-%m-%y") for i in sorted(inspections, key=lambda x: x.inspection_date, reverse=True) if i.date_of_discharge), "-")
+
+        # Remarks (Concat latest?)
+        remarks = next((i.remarks for i in sorted(inspections, key=lambda x: x.inspection_date, reverse=True) if i.remarks), "")
+
         data.append([
-            ext.sl_no,
-            ext.type,
-            ext.capacity,
-            ext.make,
+            Paragraph(ext.sl_no, styles['Normal']),
+            Paragraph(ext.type, styles['Normal']),
+            Paragraph(ext.capacity, styles['Normal']),
             str(ext.year_of_manufacture),
-            ext.location,
-            ""
+            Paragraph(ext.make, styles['Normal']),
+            Paragraph(ext.location, styles['Normal']),
+            Paragraph(", ".join(quarterly_dates[-4:]), styles['Normal']), # Show last 4
+            Paragraph(", ".join(annual_dates[-2:]), styles['Normal']),    # Show last 2
+            pressure_test,
+            discharge,
+            refilled_on,
+            due_refill,
+            Paragraph(remarks, styles['Normal'])
         ])
         
-    # Create Table
-    t = Table(data, colWidths=[60, 80, 60, 100, 50, 150, 150])
+    # Column Widths (total ~770 for Letter Landscape)
+    # Adjusted to fit 13 columns
+    col_widths = [40, 50, 40, 35, 60, 80, 80, 80, 60, 60, 60, 60, 80]
+    
+    t = Table(data, colWidths=col_widths, repeatRows=1)
     t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTSIZE', (0, 0), (-1, -1), 8), # Small font to fit
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('WORDWRAP', (0, 0), (-1, -1), True),
     ]))
     
     elements.append(t)

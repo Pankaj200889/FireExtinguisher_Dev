@@ -13,6 +13,8 @@ from auth import (
     User
 )
 from pydantic import BaseModel
+from fastapi import Request, BackgroundTasks
+from audit_logger import create_audit_log
 
 class Token(BaseModel):
     access_token: str
@@ -33,7 +35,7 @@ class UserPublic(BaseModel):
 router = APIRouter(tags=["auth"])
 
 @router.post("/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
+async def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
     statement = select(User).where(User.username == form_data.username)
     user = session.exec(statement).first()
     if not user or not verify_password(form_data.password, user.password_hash):
@@ -46,6 +48,15 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     access_token = create_access_token(
         data={"sub": user.username, "role": user.role}, expires_delta=access_token_expires
     )
+    
+    # Audit Log
+    create_audit_log(
+        user_id=user.id,
+        action="LOGIN",
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+    
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/register", response_model=UserPublic)
