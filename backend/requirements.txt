@@ -8,3 +8,5 @@ passlib[bcrypt]
 email-validator
 qrcode[pil]
 bcrypt==3.2.2
+openpyxl
+reportlab

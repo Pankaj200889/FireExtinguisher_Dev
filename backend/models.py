@@ -44,3 +44,13 @@ class Inspection(SQLModel, table=True):
     photo_path: Optional[str] = None
     
     extinguisher: Optional[Extinguisher] = Relationship(back_populates="inspections")
+
+class AuditLog(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    action: str
+    details: Optional[str] = None # JSON string
+    ip_address: Optional[str] = None
+    device_info: Optional[str] = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+

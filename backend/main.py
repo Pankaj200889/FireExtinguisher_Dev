@@ -2,7 +2,7 @@ from fastapi import FastAPI
 import os
 from database import init_db
 from contextlib import asynccontextmanager
-from routes import auth_routes, extinguisher_routes, upload_routes, inspection_routes, websocket_routes
+from routes import auth_routes, extinguisher_routes, upload_routes, inspection_routes, websocket_routes, settings_routes, reports_routes
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -46,6 +46,8 @@ app.include_router(auth_routes.router)
 app.include_router(extinguisher_routes.router)
 app.include_router(upload_routes.router)
 app.include_router(inspection_routes.router)
+app.include_router(settings_routes.router)
+app.include_router(reports_routes.router)
 app.include_router(websocket_routes.router)
 
 from fastapi.staticfiles import StaticFiles
