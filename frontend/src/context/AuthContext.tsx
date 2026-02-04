@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(decoded);
 
         if (redirectPath) {
-            router.push(redirectPath);
+            window.location.href = redirectPath;
             return;
         }
 

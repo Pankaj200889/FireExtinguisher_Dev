@@ -21,7 +21,7 @@ export default function ScanRouterPage() {
             if (!token) {
                 setStatus("Public Access Detected...");
                 // Small delay to show animation context (premium feel)
-                setTimeout(() => router.replace(`/extinguisher/${id}`), 800);
+                setTimeout(() => window.location.href = `/extinguisher/${id}`, 800);
                 return;
             }
 
