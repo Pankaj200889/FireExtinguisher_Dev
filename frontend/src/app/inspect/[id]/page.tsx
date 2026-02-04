@@ -15,18 +15,52 @@ export default function InspectionPage() {
     const [submitting, setSubmitting] = useState(false);
     const [lockError, setLockError] = useState<string | null>(null);
 
-    // File states (mocking uploads for speed, real implementation hooks into upload API)
-    const [signature, setSignature] = useState<File | null>(null);
+    // Gallery State
+    const [gallery, setGallery] = useState<{ file: File; preview: string }[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const files = Array.from(e.target.files);
+            if (gallery.length + files.length > 6) {
+                alert("Maximum 6 photos allowed");
+                return;
+            }
+
+            const newPhotos = files.map(file => ({
+                file,
+                preview: URL.createObjectURL(file)
+            }));
+            setGallery(prev => [...prev, ...newPhotos]);
+        }
+    };
+
+    const removePhoto = (index: number) => {
+        setGallery(prev => prev.filter((_, i) => i !== index));
+    };
 
     const onSubmit = async (data: any) => {
         setSubmitting(true);
         setLockError(null);
         try {
+            // 1. Upload Gallery Images
+            const imageUrls: string[] = [];
+            for (const item of gallery) {
+                const formData = new FormData();
+                formData.append('file', item.file);
+                const uploadRes = await api.post('/upload/', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                imageUrls.push(uploadRes.data.url);
+            }
+
             const payload = {
                 extinguisher_id: id,
                 inspection_type: data.inspection_type,
                 remarks: data.remarks,
-                signature_path: "mock_signature.png", // In real app: upload first, get URL
+                signature_path: "mock_signature.png",
+                photo_path: imageUrls.length > 0 ? imageUrls[0] : null, // Use first gallery image as main photo?
+                image_urls: imageUrls,
                 pressure_tested_on: data.pressure_tested_on ? new Date(data.pressure_tested_on).toISOString() : null,
                 // ... map other Annex H fields
             };
@@ -87,6 +121,44 @@ export default function InspectionPage() {
                                 <span className="ml-2">Annual</span>
                             </label>
                         </div>
+                    </div>
+
+                    {/* Gallery Section */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Photo Gallery (Max 6)</label>
+                        <div className="grid grid-cols-3 gap-2 mb-2">
+                            {gallery.map((img, idx) => (
+                                <div key={idx} className="relative aspect-square">
+                                    <img src={img.preview} alt="preview" className="w-full h-full object-cover rounded-md border" />
+                                    <button
+                                        type="button"
+                                        onClick={() => removePhoto(idx)}
+                                        className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 m-1 hover:bg-red-600"
+                                    >
+                                        <div className="h-3 w-3 flex items-center justify-center">x</div>
+                                    </button>
+                                </div>
+                            ))}
+                            {gallery.length < 6 && (
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="border-2 border-dashed border-gray-300 rounded-md flex flex-col items-center justify-center aspect-square text-gray-400 hover:border-red-500 hover:text-red-500"
+                                >
+                                    <Camera className="h-6 w-6" />
+                                    <span className="text-xs mt-1">Add</span>
+                                </button>
+                            )}
+                        </div>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            multiple
+                            accept="image/*"
+                            onChange={handleFileSelect}
+                        />
+                        <p className="text-xs text-gray-500">Capture Tube, Valve, Pressure Gauge, etc.</p>
                     </div>
 
                     {/* Annex H Fields */}

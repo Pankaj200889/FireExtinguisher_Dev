@@ -16,7 +16,13 @@ export default function NewExtinguisherPage() {
     const onSubmit = async (data: any) => {
         setLoading(true);
         try {
-            const response = await api.post('/extinguishers/', data);
+            // Combine Capacity
+            const finalData = {
+                ...data,
+                capacity: `${data.capacity_value}${data.capacity_unit}`
+            };
+
+            const response = await api.post('/extinguishers/', finalData);
             const newId = response.data.id;
 
             // Fetch QR Code immediately
@@ -98,7 +104,23 @@ export default function NewExtinguisherPage() {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">Capacity</label>
-                                <input {...register('capacity', { required: true })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="e.g. 6kg" />
+                                <div className="mt-1 flex rounded-md shadow-sm">
+                                    <input
+                                        {...register('capacity_value', { required: true })}
+                                        type="number"
+                                        step="0.1"
+                                        className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                        placeholder="e.g. 6"
+                                    />
+                                    <select
+                                        {...register('capacity_unit', { required: true })}
+                                        className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
+                                    >
+                                        <option value="kg">kg</option>
+                                        <option value="L">L</option>
+                                        <option value="g">g</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div>
@@ -113,7 +135,14 @@ export default function NewExtinguisherPage() {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">Year of Manufacture</label>
-                                <input {...register('year_of_manufacture', { required: true, valueAsNumber: true })} type="number" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                                <select
+                                    {...register('year_of_manufacture', { required: true, valueAsNumber: true })}
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                >
+                                    {Array.from({ length: new Date().getFullYear() - 1999 }, (_, i) => 2000 + i).reverse().map(year => (
+                                        <option key={year} value={year}>{year}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 

@@ -18,7 +18,8 @@ class InspectionCreate(BaseModel):
     remarks: str
     signature_path: str
     photo_path: Optional[str] = None
-    pressure_tested_on: Optional[datetime] = None # Using datetime for simplicity in JSON, will cast to date
+    image_urls: Optional[List[str]] = [] # Gallery Images
+    pressure_tested_on: Optional[datetime] = None
     date_of_discharge: Optional[datetime] = None
     refilled_on: Optional[datetime] = None
     due_for_refilling: Optional[datetime] = None
@@ -65,6 +66,17 @@ async def submit_inspection(
     session.add(db_obj)
     session.commit()
     session.refresh(db_obj)
+    
+    # 4. Save Gallery Images
+    from models import InspectionImage
+    if inspection.image_urls:
+        for img_url in inspection.image_urls:
+            img_obj = InspectionImage(
+                inspection_id=db_obj.id,
+                image_url=img_url
+            )
+            session.add(img_obj)
+        session.commit()
     
     # Real-time trigger
     from sockets import manager

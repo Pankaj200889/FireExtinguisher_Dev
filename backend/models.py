@@ -44,6 +44,16 @@ class Inspection(SQLModel, table=True):
     photo_path: Optional[str] = None
     
     extinguisher: Optional[Extinguisher] = Relationship(back_populates="inspections")
+    images: list["InspectionImage"] = Relationship(back_populates="inspection")
+
+class InspectionImage(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    inspection_id: uuid.UUID = Field(foreign_key="inspection.id")
+    image_url: str
+    caption: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    inspection: Optional[Inspection] = Relationship(back_populates="images")
 
 class AuditLog(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
