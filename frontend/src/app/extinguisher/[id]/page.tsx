@@ -190,6 +190,15 @@ export default function ExtinguisherMasterPage() {
             </div>
 
             <p className="mt-8 text-xs text-gray-400">IS 2190:2024 Compliant System</p>
+
+            {/* DEBUG OVERLAY - REMOVE BEFORE FINAL PROD */}
+            <div className="mt-8 p-4 bg-black text-green-400 font-mono text-xs w-full max-w-sm rounded opacity-80">
+                <p className="font-bold underline mb-2">DEBUG INFO</p>
+                <p>Mode: {data.mode}</p>
+                <p>Auth Token: {typeof window !== 'undefined' && localStorage.getItem('token') ? 'YES' : 'NO'}</p>
+                <p>Last Insp: {data.lastInspectionAt || 'None'}</p>
+                <p>User: {data.last_inspector || 'N/A'}</p>
+            </div>
         </div>
     );
 }

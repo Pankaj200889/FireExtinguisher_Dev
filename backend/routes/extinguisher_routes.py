@@ -82,26 +82,27 @@ async def read_extinguisher(
     # --- CORE MODE DECISION LOGIC (IS 2190) ---
     mode = "VIEW"
     
+    # DEBUG LOGGING
+    print(f"DEBUG: Processing /extinguisher/{id}")
+    print(f"DEBUG: Current User: {current_user}")
+    
     if current_user:
         if not latest_inspection:
+            print("DEBUG: No inspection found -> EDIT")
             mode = "EDIT"
         else:
-            # Check 48 hour rule
-            # Ensure timezone awareness - assuming DB stores UTC or naive. 
-            # Using simple naive comparision for MVP robustness or UTC if set.
             now = datetime.now()
-            # inspection_date in model is Date or DateTime? It was defined as DateTime in models.py
-            # We need created_at actually, but inspection_date is the field we have.
-            
-            # If inspection_date is date only, we convert. If datetime, use directly.
-            # Checking models.py logic from memory: likely DateTime.
-            
-            # Logic: If (Now - LastInspection) < 48 Hours -> LOCKED
             diff = now - latest_inspection.inspection_date
+            print(f"DEBUG: Last Insp: {latest_inspection.inspection_date}, Diff: {diff}")
+            
             if diff < timedelta(hours=48):
+                print("DEBUG: Less than 48h -> LOCKED")
                 mode = "LOCKED"
             else:
+                print("DEBUG: More than 48h -> EDIT")
                 mode = "EDIT"
+    else:
+        print("DEBUG: No User -> VIEW")
     
     # --- END CORE LOGIC ---
 
