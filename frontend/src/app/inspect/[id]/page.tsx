@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { Lock, Camera, PenTool, CheckCircle } from 'lucide-react';
+import SignatureCanvas from 'react-signature-canvas';
 
 export default function InspectionPage() {
     const { register, handleSubmit } = useForm();
@@ -18,6 +19,9 @@ export default function InspectionPage() {
     // Gallery State
     const [gallery, setGallery] = useState<{ file: File; preview: string }[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Signature State
+    const sigPad = useRef<SignatureCanvas>(null);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
@@ -39,6 +43,10 @@ export default function InspectionPage() {
         setGallery(prev => prev.filter((_, i) => i !== index));
     };
 
+    const clearSignature = () => {
+        sigPad.current?.clear();
+    };
+
     const onSubmit = async (data: any) => {
         setSubmitting(true);
         setLockError(null);
@@ -54,12 +62,27 @@ export default function InspectionPage() {
                 imageUrls.push(uploadRes.data.url);
             }
 
+            // 2. Upload Signature
+            let signatureUrl = "mock_signature.png";
+            if (sigPad.current && !sigPad.current.isEmpty()) {
+                const sigBlob = await new Promise<Blob | null>(resolve =>
+                    sigPad.current?.getCanvas().toBlob(resolve, 'image/png')
+                );
+
+                if (sigBlob) {
+                    const sigData = new FormData();
+                    sigData.append('file', sigBlob, 'signature.png');
+                    const sigRes = await api.post('/upload/', sigData);
+                    signatureUrl = sigRes.data.url;
+                }
+            }
+
             const payload = {
                 extinguisher_id: id,
                 inspection_type: data.inspection_type,
                 remarks: data.remarks,
-                signature_path: "mock_signature.png",
-                photo_path: imageUrls.length > 0 ? imageUrls[0] : null, // Use first gallery image as main photo?
+                signature_path: signatureUrl,
+                photo_path: imageUrls.length > 0 ? imageUrls[0] : null,
                 image_urls: imageUrls,
                 pressure_tested_on: data.pressure_tested_on ? new Date(data.pressure_tested_on).toISOString() : null,
                 // ... map other Annex H fields
@@ -172,11 +195,27 @@ export default function InspectionPage() {
                         <textarea {...register('remarks', { required: true })} rows={3} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm border p-2" placeholder="Condition of seal, nozzle, etc."></textarea>
                     </div>
 
-                    {/* Signature Placeholder */}
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                        <PenTool className="mx-auto h-8 w-8 text-gray-400" />
-                        <span className="mt-2 block text-sm font-medium text-gray-900">Sign Here</span>
-                        <p className="text-xs text-gray-500">(Canvas Pad Integration Placeholder)</p>
+                    {/* Signature Section */}
+                    <div className="border border-gray-300 rounded-lg p-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Inspector Signature</label>
+                        <div className="border border-gray-200 bg-white shadow-inner">
+                            <SignatureCanvas
+                                ref={sigPad}
+                                penColor='black'
+                                canvasProps={{
+                                    width: 300,
+                                    height: 150,
+                                    className: 'sigCanvas w-full h-40'
+                                }}
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={clearSignature}
+                            className="mt-2 text-xs text-red-600 hover:text-red-800 underline"
+                        >
+                            Clear Signature
+                        </button>
                     </div>
 
                     <button
