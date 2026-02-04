@@ -40,22 +40,28 @@ export default function QRScannerPage() {
             // Extract UUID
             let extinguisherId = decodedText;
             try {
-                const url = new URL(decodedText);
-                const pathParts = url.pathname.split('/');
-                const possibleId = pathParts[pathParts.length - 1];
-                if (possibleId) extinguisherId = possibleId;
+                // Handle full URL "https://.../scan/123" OR "https://.../extinguisher/123"
+                if (decodedText.startsWith('http')) {
+                    const url = new URL(decodedText);
+                    const pathParts = url.pathname.split('/');
+                    // Filter out empty strings from split (e.g. start/end slashes)
+                    const cleanParts = pathParts.filter(p => p.length > 0);
+                    const possibleId = cleanParts[cleanParts.length - 1];
+                    if (possibleId) extinguisherId = possibleId;
+                }
             } catch (e) {
                 console.log("Not a URL, using raw text");
             }
 
             const currentUser = userRef.current;
-            console.log("Scan Logic -> User Role:", currentUser?.role);
+            const role = currentUser?.role?.toLowerCase();
+            console.log("Scan Logic -> User Role (Lower):", role);
 
-            // Redirect Logic
-            if (currentUser?.role === 'admin' || currentUser?.role === 'inspector') {
-                router.push(`/inspect/${extinguisherId}`);
+            // Force Hard Redirect to ensure fresh state
+            if (role === 'admin' || role === 'inspector') {
+                window.location.href = `/inspect/${extinguisherId}`;
             } else {
-                router.push(`/extinguisher/${extinguisherId}`);
+                window.location.href = `/extinguisher/${extinguisherId}`;
             }
 
         }, (error) => {
