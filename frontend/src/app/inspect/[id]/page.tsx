@@ -85,6 +85,8 @@ export default function InspectionPage() {
                 photo_path: imageUrls.length > 0 ? imageUrls[0] : null,
                 image_urls: imageUrls,
                 pressure_tested_on: data.pressure_tested_on ? new Date(data.pressure_tested_on).toISOString() : null,
+                refilled_on: data.refilled_on ? new Date(data.refilled_on).toISOString() : null,
+                due_for_refilling: data.due_for_refilling ? new Date(data.due_for_refilling).toISOString() : null,
                 // ... map other Annex H fields
             };
 
@@ -188,6 +190,16 @@ export default function InspectionPage() {
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Pressure Test Date</label>
                         <input {...register('pressure_tested_on')} type="date" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm border p-2" />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Date of Refilling</label>
+                        <input {...register('refilled_on')} type="date" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm border p-2" />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Next Refilling Due</label>
+                        <input {...register('due_for_refilling')} type="date" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm border p-2" />
                     </div>
 
                     <div>
