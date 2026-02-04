@@ -144,7 +144,7 @@ export default function PublicExtinguisherPage() {
                         </button>
                     ) : (
                         <button
-                            onClick={() => router.push('/login')}
+                            onClick={() => router.push(`/login?redirect=/inspect/${id}`)}
                             className="text-xs text-indigo-600 hover:text-indigo-800 font-medium inline-flex items-center"
                         >
                             Inspector Login <ArrowRight className="ml-1 h-3 w-3" />

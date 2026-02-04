@@ -6,11 +6,15 @@ import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { Lock, User } from 'lucide-react';
 
+import { useSearchParams } from 'next/navigation';
+
 export default function LoginPage() {
     const { register, handleSubmit, formState: { errors } } = useForm();
     const { login } = useAuth();
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const searchParams = useSearchParams();
+    const redirectPath = searchParams.get('redirect');
 
     const onSubmit = async (data: any) => {
         setLoading(true);
@@ -24,7 +28,7 @@ export default function LoginPage() {
             const response = await api.post('/token', formData, {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             });
-            login(response.data.access_token);
+            login(response.data.access_token, redirectPath || undefined);
         } catch (err: any) {
             console.error("Login Error:", err);
             let msg = 'Login failed';

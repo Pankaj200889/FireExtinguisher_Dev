@@ -13,7 +13,7 @@ interface User {
 
 interface AuthContextType {
     user: User | null;
-    login: (token: string) => void;
+    login: (token: string, redirectPath?: string) => void;
     logout: (shouldRedirect?: boolean) => void;
     isAuthenticated: boolean;
     isLoading: boolean;
@@ -47,10 +47,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(false);
     }, []);
 
-    const login = (token: string) => {
+    const login = (token: string, redirectPath?: string) => {
         localStorage.setItem('token', token);
         const decoded = jwtDecode<User>(token);
         setUser(decoded);
+
+        if (redirectPath) {
+            router.push(redirectPath);
+            return;
+        }
 
         // Redirect based on role
         if (decoded.role === 'admin') {
