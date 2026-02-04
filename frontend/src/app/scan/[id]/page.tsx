@@ -28,7 +28,8 @@ export default function ScanRouterPage() {
             // 2. If token exists, wait for Auth Context to confirm role
             // (AuthContext is already verifying the token)
             if (isAuthenticated && user) {
-                if (user.role === 'inspector' || user.role === 'admin') {
+                const role = user.role.toLowerCase();
+                if (role === 'inspector' || role === 'admin') {
                     setStatus("Verifying Inspector Access...");
                     router.replace(`/inspect/${id}`);
                 } else {

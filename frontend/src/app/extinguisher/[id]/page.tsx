@@ -133,12 +133,23 @@ export default function PublicExtinguisherPage() {
 
                 {/* Login Action (Footer) */}
                 <div className="bg-gray-50 px-6 py-4 text-center border-t border-gray-200">
-                    <button
-                        onClick={() => router.push('/login')}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium inline-flex items-center"
-                    >
-                        Inspector Login <ArrowRight className="ml-1 h-3 w-3" />
-                    </button>
+                    {/* Smart Button: If token exists, offer to Inspect */}
+                    {typeof window !== 'undefined' && localStorage.getItem('token') ? (
+                        <button
+                            onClick={() => router.push(`/inspect/${id}`)}
+                            className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+                        >
+                            <ShieldCheck className="mr-2 h-4 w-4" />
+                            Perform Inspection
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => router.push('/login')}
+                            className="text-xs text-indigo-600 hover:text-indigo-800 font-medium inline-flex items-center"
+                        >
+                            Inspector Login <ArrowRight className="ml-1 h-3 w-3" />
+                        </button>
+                    )}
                 </div>
             </div>
 
