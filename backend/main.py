@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+import os
 from database import init_db
 from contextlib import asynccontextmanager
 from routes import auth_routes, extinguisher_routes, upload_routes, inspection_routes, websocket_routes
@@ -48,7 +49,6 @@ app.include_router(inspection_routes.router)
 app.include_router(websocket_routes.router)
 
 from fastapi.staticfiles import StaticFiles
-import os
 os.makedirs("backend/uploads", exist_ok=True)
 app.mount("/static", StaticFiles(directory="backend/uploads"), name="static")
 
