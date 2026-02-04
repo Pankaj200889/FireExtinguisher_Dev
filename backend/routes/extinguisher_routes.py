@@ -8,7 +8,24 @@ import os
 from database import get_session
 from models import Extinguisher, User, Inspection
 
-# ... (router definition)
+router = APIRouter(prefix="/extinguishers", tags=["extinguishers"])
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+class ExtinguisherCreate(BaseModel):
+    sl_no: str
+    type: str
+    capacity: str
+    year_of_manufacture: int
+    make: str
+    location: str
+
+class ExtinguisherRead(ExtinguisherCreate):
+    id: uuid.UUID
+    qr_code_url: Optional[str] = None
+    last_inspection_status: Optional[str] = None
+    next_service_due: Optional[date] = None
+    last_inspector: Optional[str] = None
 
 @router.post("/", response_model=ExtinguisherRead)
 async def create_extinguisher(
