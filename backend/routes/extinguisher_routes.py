@@ -9,6 +9,7 @@ from database import get_session
 from models import Extinguisher, User, Inspection
 from pydantic import BaseModel
 import uuid
+from auth import get_admin_user, get_current_user
 
 router = APIRouter(prefix="/extinguishers", tags=["extinguishers"])
 
