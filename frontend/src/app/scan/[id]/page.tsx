@@ -17,7 +17,7 @@ export default function ScanPage() {
 
         if (!isAuthenticated) {
             // Not logged in -> Public View
-            router.replace(`/public/${id}`);
+            router.replace(`/extinguisher/${id}`);
             return;
         }
 
@@ -25,7 +25,7 @@ export default function ScanPage() {
         if (user?.role === 'inspector' || user?.role === 'admin') {
             checkLockAndRedirect();
         } else {
-            router.replace(`/public/${id}`);
+            router.replace(`/extinguisher/${id}`);
         }
 
     }, [isAuthenticated, isLoading, user, id, router]);
@@ -37,7 +37,7 @@ export default function ScanPage() {
             router.replace(`/inspect/${id}`);
         } catch (error) {
             console.error("Error checking lock", error);
-            router.replace(`/public/${id}`);
+            router.replace(`/extinguisher/${id}`);
         }
     };
 
