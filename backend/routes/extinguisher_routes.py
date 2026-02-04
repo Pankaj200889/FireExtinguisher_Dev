@@ -31,39 +31,9 @@ class ExtinguisherRead(ExtinguisherCreate):
     last_inspector: Optional[str] = None
     mode: str = "VIEW" # VIEW, EDIT, LOCKED
     lastInspectionAt: Optional[str] = None
+    debug_info: Optional[str] = None
 
-@router.post("/", response_model=ExtinguisherRead)
-async def create_extinguisher(
-    extinguisher: ExtinguisherCreate, 
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_admin_user)
-):
-    # Check uniqueness of Sl No
-    existing = session.exec(select(Extinguisher).where(Extinguisher.sl_no == extinguisher.sl_no)).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Extinguisher with this Serial Number already exists.")
-    
-    db_obj = Extinguisher(**extinguisher.model_dump())
-    session.add(db_obj)
-    session.commit()
-    session.refresh(db_obj)
-    
-    # Generate QR URL (Public Access Link)
-    # The QR code will point to the NEW unified page
-    db_obj.qr_code_url = f"{FRONTEND_URL}/extinguisher/{db_obj.id}"
-    session.add(db_obj)
-    session.commit()
-    session.refresh(db_obj)
-    
-    return db_obj
-
-@router.get("/", response_model=List[ExtinguisherRead])
-async def read_extinguishers(
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    extinguishers = session.exec(select(Extinguisher)).all()
-    return extinguishers
+# ... (skip to read_extinguisher)
 
 @router.get("/{id}", response_model=ExtinguisherRead)
 async def read_extinguisher(
@@ -81,28 +51,26 @@ async def read_extinguisher(
     
     # --- CORE MODE DECISION LOGIC (IS 2190) ---
     mode = "VIEW"
-    
-    # DEBUG LOGGING
-    print(f"DEBUG: Processing /extinguisher/{id}")
-    print(f"DEBUG: Current User: {current_user}")
+    logs = [f"User: {current_user.username if current_user else 'None'}"]
     
     if current_user:
         if not latest_inspection:
-            print("DEBUG: No inspection found -> EDIT")
+            logs.append("No previous inspection -> EDIT")
             mode = "EDIT"
         else:
             now = datetime.now()
             diff = now - latest_inspection.inspection_date
-            print(f"DEBUG: Last Insp: {latest_inspection.inspection_date}, Diff: {diff}")
+            logs.append(f"Last Insp: {latest_inspection.inspection_date}")
+            logs.append(f"Time Diff: {diff}")
             
             if diff < timedelta(hours=48):
-                print("DEBUG: Less than 48h -> LOCKED")
+                logs.append("Under 48h -> LOCKED")
                 mode = "LOCKED"
             else:
-                print("DEBUG: More than 48h -> EDIT")
+                logs.append("Over 48h -> EDIT")
                 mode = "EDIT"
     else:
-        print("DEBUG: No User -> VIEW")
+        logs.append("No active session -> VIEW")
     
     # --- END CORE LOGIC ---
 
@@ -124,7 +92,8 @@ async def read_extinguisher(
         next_service_due=service_due,
         last_inspector=inspector_name,
         mode=mode,
-        lastInspectionAt=latest_inspection.inspection_date.isoformat() if latest_inspection else None
+        lastInspectionAt=latest_inspection.inspection_date.isoformat() if latest_inspection else None,
+        debug_info=" | ".join(logs)
     )
     return response
 

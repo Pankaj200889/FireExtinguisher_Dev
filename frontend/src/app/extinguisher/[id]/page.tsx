@@ -25,6 +25,7 @@ interface Extinguisher {
     last_inspector?: string;
     mode: "VIEW" | "EDIT" | "LOCKED";
     lastInspectionAt?: string;
+    debug_info?: string;
 }
 
 export default function ExtinguisherMasterPage() {
@@ -203,7 +204,7 @@ export default function ExtinguisherMasterPage() {
                 <p>Mode: {data.mode}</p>
                 <p>Auth Token: {typeof window !== 'undefined' && localStorage.getItem('token') ? 'YES' : 'NO'}</p>
                 <p>Last Insp: {data.lastInspectionAt || 'None'}</p>
-                <p>User: {data.last_inspector || 'N/A'}</p>
+                <p>Logic: {data.debug_info}</p>
             </div>
         </div>
     );

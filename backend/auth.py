@@ -14,7 +14,7 @@ ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -81,32 +81,17 @@ async def get_optional_current_user(token: Optional[str] = Depends(oauth2_scheme
 
 # REFINED IMPLEMENTATION for simple dependency injection
 # We need to access the request header manually or use a lenient dependency
-from fastapi import Request
-async def get_optional_current_user(request: Request, session: Session = Depends(get_session)) -> Optional[User]:
-    token = request.headers.get("Authorization")
-    print(f"AUTH DEBUG: Raw Header: {token}")
-    
+async def get_optional_current_user(token: Optional[str] = Depends(oauth2_scheme), session: Session = Depends(get_session)) -> Optional[User]:
     if not token:
-        print("AUTH DEBUG: No Token Header")
         return None
-    
     try:
-        scheme, _, param = token.partition(" ")
-        if scheme.lower() != "bearer":
-            print(f"AUTH DEBUG: Invalid Scheme {scheme}")
-            return None
-        
-        payload = jwt.decode(param, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
-        print(f"AUTH DEBUG: Decoded User: {username}")
-        
         if username is None:
             return None
-            
-        statement = select(User).where(User.username == username)
-        user = session.exec(statement).first()
-        print(f"AUTH DEBUG: DB User Found: {user.username if user else 'None'}")
-        return user
-    except (JWTError, Exception) as e:
-        print(f"AUTH DEBUG: Exception {str(e)}")
+    except JWTError:
         return None
+    
+    statement = select(User).where(User.username == username)
+    user = session.exec(statement).first()
+    return user
