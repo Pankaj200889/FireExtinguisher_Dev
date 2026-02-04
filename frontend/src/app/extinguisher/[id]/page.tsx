@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { MapPin, Info, Calendar, ShieldCheck, ArrowRight, User, AlertCircle, CheckCircle } from 'lucide-react';
+import { MapPin, Info, Calendar, ArrowRight, User, AlertCircle, CheckCircle, Lock } from 'lucide-react';
+import InspectionForm from '@/components/InspectionForm';
 
 interface Extinguisher {
     id: string;
@@ -16,9 +17,11 @@ interface Extinguisher {
     last_inspection_status?: string;
     next_service_due?: string;
     last_inspector?: string;
+    mode: "VIEW" | "EDIT" | "LOCKED";
+    lastInspectionAt?: string;
 }
 
-export default function PublicExtinguisherPage() {
+export default function ExtinguisherMasterPage() {
     const params = useParams();
     const router = useRouter();
     const id = params.id as string;
@@ -26,12 +29,12 @@ export default function PublicExtinguisherPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
-    useEffect(() => {
-        if (!id) return;
-
+    const fetchData = useCallback(() => {
+        setLoading(true);
         api.get<Extinguisher>(`/extinguishers/${id}`)
             .then(res => {
                 setData(res.data);
+                console.log("Master Page Mode Decision:", res.data.mode);
                 setLoading(false);
             })
             .catch(err => {
@@ -40,6 +43,10 @@ export default function PublicExtinguisherPage() {
                 setLoading(false);
             });
     }, [id]);
+
+    useEffect(() => {
+        if (id) fetchData();
+    }, [id, fetchData]);
 
     if (loading) {
         return (
@@ -64,8 +71,59 @@ export default function PublicExtinguisherPage() {
         );
     }
 
-    const isOperational = data.last_inspection_status === "Operational";
+    // --- LOGIC BRANCHING ---
 
+    // CASE 1: LOCKED
+    if (data.mode === 'LOCKED') {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+                <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+                    <Lock className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">Inspection Locked</h2>
+                    <p className="text-gray-600 mb-4">
+                        This extinguisher was inspected recently. Next inspection allowed after 48 hours.
+                    </p>
+                    {data.lastInspectionAt && (
+                        <p className="text-xs text-gray-400 mb-6">Last Check: {new Date(data.lastInspectionAt).toLocaleString()}</p>
+                    )}
+
+                    <button
+                        onClick={() => router.push('/')}
+                        className="inline-flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700"
+                    >
+                        Return Home
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // CASE 2: EDIT (Perform Inspection)
+    if (data.mode === 'EDIT') {
+        return (
+            <div className="min-h-screen bg-gray-50 py-8 px-4">
+                <div className="max-w-lg mx-auto bg-white rounded-xl shadow border border-gray-200">
+                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-xl">
+                        <h1 className="text-lg font-bold text-gray-800">Perform Inspection</h1>
+                        <p className="text-xs text-gray-500">{data.type} - {data.location}</p>
+                    </div>
+                    {/* Render Form Component */}
+                    <div className="px-6 pb-6">
+                        <InspectionForm
+                            extinguisherId={id}
+                            onSuccess={() => {
+                                // Refresh logic: fetch data again to see "LOCKED" state
+                                fetchData();
+                            }}
+                        />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // CASE 3: VIEW (Default Public View)
+    const isOperational = data.last_inspection_status === "Operational";
     return (
         <div className="min-h-screen bg-gray-100 py-8 px-4 flex flex-col items-center">
 
@@ -90,15 +148,12 @@ export default function PublicExtinguisherPage() {
                 </div>
 
                 <div className="p-6 space-y-5">
-
-                    {/* Next Due */}
+                    {/* Make/Capacity */}
                     <div className="flex items-center">
-                        <Calendar className="h-5 w-5 text-indigo-500 mr-3" />
+                        <Info className="h-5 w-5 text-indigo-500 mr-3" />
                         <div>
-                            <p className="text-xs text-gray-500 font-medium">Next Refill Due</p>
-                            <p className="text-sm font-bold text-gray-900">
-                                {data.next_service_due ? new Date(data.next_service_due).toLocaleDateString() : 'Not Scheduled'}
-                            </p>
+                            <p className="text-xs text-gray-500 font-medium">Make & Capacity</p>
+                            <p className="text-sm font-bold text-gray-900">{data.make} - {data.capacity}</p>
                         </div>
                     </div>
 
@@ -111,45 +166,26 @@ export default function PublicExtinguisherPage() {
                         </div>
                     </div>
 
-                    {/* Inspector */}
+                    {/* Next Due */}
                     <div className="flex items-center">
-                        <User className="h-5 w-5 text-indigo-500 mr-3" />
+                        <Calendar className="h-5 w-5 text-indigo-500 mr-3" />
                         <div>
-                            <p className="text-xs text-gray-500 font-medium">Last Inspected By</p>
-                            <p className="text-sm font-bold text-gray-900">{data.last_inspector || 'N/A'}</p>
+                            <p className="text-xs text-gray-500 font-medium">Next Refill Due</p>
+                            <p className="text-sm font-bold text-gray-900">
+                                {data.next_service_due ? new Date(data.next_service_due).toLocaleDateString() : 'Not Scheduled'}
+                            </p>
                         </div>
                     </div>
-
-                    {/* Make/Capacity */}
-                    <div className="flex items-center">
-                        <Info className="h-5 w-5 text-indigo-500 mr-3" />
-                        <div>
-                            <p className="text-xs text-gray-500 font-medium">Make & Capacity</p>
-                            <p className="text-sm font-bold text-gray-900">{data.make} - {data.capacity}</p>
-                        </div>
-                    </div>
-
                 </div>
 
-                {/* Login Action (Footer) */}
+                {/* Login Action (Footer) - Only shown in VIEW mode */}
                 <div className="bg-gray-50 px-6 py-4 text-center border-t border-gray-200">
-                    {/* Smart Button: If token exists, offer to Inspect */}
-                    {typeof window !== 'undefined' && localStorage.getItem('token') ? (
-                        <button
-                            onClick={() => router.push(`/inspect/${id}`)}
-                            className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
-                        >
-                            <ShieldCheck className="mr-2 h-4 w-4" />
-                            Perform Inspection
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => router.push(`/login?redirect=/inspect/${id}`)}
-                            className="text-xs text-indigo-600 hover:text-indigo-800 font-medium inline-flex items-center"
-                        >
-                            Inspector Login <ArrowRight className="ml-1 h-3 w-3" />
-                        </button>
-                    )}
+                    <button
+                        onClick={() => router.push(`/login?redirect=/extinguisher/${id}`)}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium inline-flex items-center"
+                    >
+                        Inspector Login <ArrowRight className="ml-1 h-3 w-3" />
+                    </button>
                 </div>
             </div>
 

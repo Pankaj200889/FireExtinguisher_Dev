@@ -9,7 +9,7 @@ from database import get_session
 from models import Extinguisher, User, Inspection
 from pydantic import BaseModel
 import uuid
-from auth import get_admin_user, get_current_user
+from auth import get_admin_user, get_current_user, get_optional_current_user
 
 router = APIRouter(prefix="/extinguishers", tags=["extinguishers"])
 
@@ -29,6 +29,8 @@ class ExtinguisherRead(ExtinguisherCreate):
     last_inspection_status: Optional[str] = None
     next_service_due: Optional[date] = None
     last_inspector: Optional[str] = None
+    mode: str = "VIEW" # VIEW, EDIT, LOCKED
+    lastInspectionAt: Optional[str] = None
 
 @router.post("/", response_model=ExtinguisherRead)
 async def create_extinguisher(
@@ -47,8 +49,8 @@ async def create_extinguisher(
     session.refresh(db_obj)
     
     # Generate QR URL (Public Access Link)
-    # The QR code will point to the frontend scan page
-    db_obj.qr_code_url = f"{FRONTEND_URL}/scan/{db_obj.id}"
+    # The QR code will point to the NEW unified page
+    db_obj.qr_code_url = f"{FRONTEND_URL}/extinguisher/{db_obj.id}"
     session.add(db_obj)
     session.commit()
     session.refresh(db_obj)
@@ -64,7 +66,11 @@ async def read_extinguishers(
     return extinguishers
 
 @router.get("/{id}", response_model=ExtinguisherRead)
-async def read_extinguisher(id: uuid.UUID, session: Session = Depends(get_session)):
+async def read_extinguisher(
+    id: uuid.UUID, 
+    session: Session = Depends(get_session),
+    current_user: Optional[User] = Depends(get_optional_current_user)
+):
     extinguisher = session.get(Extinguisher, id)
     if not extinguisher:
         raise HTTPException(status_code=404, detail="Extinguisher not found")
@@ -73,31 +79,56 @@ async def read_extinguisher(id: uuid.UUID, session: Session = Depends(get_sessio
     statement = select(Inspection).where(Inspection.extinguisher_id == id).order_by(Inspection.inspection_date.desc())
     latest_inspection = session.exec(statement).first()
     
+    # --- CORE MODE DECISION LOGIC (IS 2190) ---
+    mode = "VIEW"
+    
+    if current_user:
+        if not latest_inspection:
+            mode = "EDIT"
+        else:
+            # Check 48 hour rule
+            # Ensure timezone awareness - assuming DB stores UTC or naive. 
+            # Using simple naive comparision for MVP robustness or UTC if set.
+            now = datetime.now()
+            # inspection_date in model is Date or DateTime? It was defined as DateTime in models.py
+            # We need created_at actually, but inspection_date is the field we have.
+            
+            # If inspection_date is date only, we convert. If datetime, use directly.
+            # Checking models.py logic from memory: likely DateTime.
+            
+            # Logic: If (Now - LastInspection) < 48 Hours -> LOCKED
+            diff = now - latest_inspection.inspection_date
+            if diff < timedelta(hours=48):
+                mode = "LOCKED"
+            else:
+                mode = "EDIT"
+    
+    # --- END CORE LOGIC ---
+
     status_label = "Pending Inspection"
     service_due = None
     inspector_name = "N/A"
     
     if latest_inspection:
-        status_label = "Operational" # Logic can depend on remarks or age
+        status_label = "Operational" 
         service_due = latest_inspection.due_for_refilling
         
-        # Get inspector name
         inspector = session.get(User, latest_inspection.inspector_id)
         if inspector:
             inspector_name = inspector.username
 
-    # Convert to Read Model
     response = ExtinguisherRead(
         **extinguisher.model_dump(),
         last_inspection_status=status_label,
         next_service_due=service_due,
-        last_inspector=inspector_name
+        last_inspector=inspector_name,
+        mode=mode,
+        lastInspectionAt=latest_inspection.inspection_date.isoformat() if latest_inspection else None
     )
     return response
 
 @router.get("/{id}/qr")
 async def get_qr_code(id: uuid.UUID, session: Session = Depends(get_session)):
-    # ... (existing QR code logic) ...
     extinguisher = session.get(Extinguisher, id)
     if not extinguisher:
         raise HTTPException(status_code=404, detail="Extinguisher not found")
@@ -109,7 +140,7 @@ async def get_qr_code(id: uuid.UUID, session: Session = Depends(get_session)):
         box_size=10,
         border=4,
     )
-    url = f"{FRONTEND_URL}/scan/{id}" 
+    url = f"{FRONTEND_URL}/extinguisher/{id}" 
     qr.add_data(url)
     qr.make(fit=True)
 

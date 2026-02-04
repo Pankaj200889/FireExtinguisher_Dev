@@ -60,3 +60,45 @@ async def get_admin_user(current_user: User = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
     return current_user
+
+async def get_optional_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[User]:
+    # Custom loop to handle no token or invalid token gracefully
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            return None
+        
+        # We need a session here, but standard Depends injection is tricky inside a manual call.
+        # Alternatively, we rely on the route to pass the user or handle this cleaner.
+        # EASIER: Just use the existing get_current_user logic but wrap it.
+        pass
+    except JWTError:
+        return None
+    return None # Placeholder, see refined implementation below
+
+# REFINED IMPLEMENTATION for simple dependency injection
+# We need to access the request header manually or use a lenient dependency
+from fastapi import Request
+async def get_optional_current_user(request: Request, session: Session = Depends(get_session)) -> Optional[User]:
+    token = request.headers.get("Authorization")
+    if not token:
+        return None
+    
+    try:
+        scheme, _, param = token.partition(" ")
+        if scheme.lower() != "bearer":
+            return None
+        
+        payload = jwt.decode(param, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            return None
+            
+        statement = select(User).where(User.username == username)
+        user = session.exec(statement).first()
+        return user
+    except (JWTError, Exception):
+        return None

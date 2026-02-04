@@ -53,16 +53,10 @@ export default function QRScannerPage() {
                 console.log("Not a URL, using raw text");
             }
 
-            const currentUser = userRef.current;
-            const role = currentUser?.role?.toLowerCase();
-            console.log("Scan Logic -> User Role (Lower):", role);
-
-            // Force Hard Redirect to ensure fresh state
-            if (role === 'admin' || role === 'inspector') {
-                window.location.href = `/inspect/${extinguisherId}`;
-            } else {
-                window.location.href = `/extinguisher/${extinguisherId}`;
-            }
+            // STRICT IS 2190 COMPLIANCE: 
+            // The Scanner does NOT decide. It simply sends user to the Master URL.
+            // The Master URL will check with Backend to decide VIEW/EDIT/LOCKED.
+            window.location.href = `/extinguisher/${extinguisherId}`;
 
         }, (error) => {
             // console.warn(error);
