@@ -74,7 +74,7 @@ export default function AdminDashboard() {
 
                 html5QrCode.start(
                     { facingMode: "environment" },
-                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    { fps: 15 }, // Full screen scanning, no box constraint
                     (decodedText) => {
                         console.log("Scanned:", decodedText);
                         const id = decodedText.split('/').pop();
