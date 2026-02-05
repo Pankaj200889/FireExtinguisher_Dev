@@ -1,66 +1,58 @@
-from typing import Optional
+from typing import Optional, List
 from sqlmodel import Field, SQLModel, Relationship
-from datetime import datetime, date
+from datetime import datetime
 import uuid
 
 class User(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     username: str = Field(index=True, unique=True)
-    email: str = Field(unique=True, index=True)
+    role: str = Field(default="inspector")  # 'admin', 'inspector'
     password_hash: str
-    role: str = Field(default="inspector")  # 'admin', 'inspector', 'auditor'
-    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class Extinguisher(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    sl_no: str = Field(unique=True, index=True) # Annex H: Sl No.
-    type: str # CO2, ABC, Water, etc.
-    capacity: str # 2kg, 4kg, 9L
-    year_of_manufacture: int
-    make: str
+    sl_no: str = Field(unique=True, index=True)
+    type: str  # CO2, ABC, Water
+    capacity: str
     location: str
+    make: Optional[str] = None
+    year_of_manufacture: Optional[int] = None
     qr_code_url: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
     
-    inspections: list["Inspection"] = Relationship(back_populates="extinguisher")
+    # Status tracking
+    last_inspection_date: Optional[datetime] = None
+    next_service_due: Optional[datetime] = None
+    status: str = Field(default="Pending") # Operational, Non-Operational, Pending
+    
+    inspections: List["Inspection"] = Relationship(back_populates="extinguisher")
 
 class Inspection(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     extinguisher_id: uuid.UUID = Field(foreign_key="extinguisher.id")
-    inspector_id: uuid.UUID = Field(foreign_key="user.id")
+    inspector_id: Optional[uuid.UUID] = Field(default=None) # Link to User if authenticated
     
-    inspection_type: str = Field(default="Quarterly") # Quarterly / Annual
-    
-    # Annex H Fields
+    inspection_type: str # Quarterly, Annual
     inspection_date: datetime = Field(default_factory=datetime.utcnow)
-    pressure_tested_on: Optional[date] = None
-    date_of_discharge: Optional[date] = None
-    refilled_on: Optional[date] = None
-    due_for_refilling: Optional[date] = None
-    remarks: str
+    
+    # Check details
+    observation: Optional[str] = Field(default="Ok") # Ok, Not Ok, etc.
+    remarks: Optional[str] = None
+    pressure_tested_on: Optional[datetime] = None
+    date_of_discharge: Optional[datetime] = None
+    refilled_on: Optional[datetime] = None
+    due_for_refilling: Optional[datetime] = None
     
     # Evidence
-    signature_path: str
-    photo_path: Optional[str] = None
+    photo_path: Optional[str] = None # Primary photo
+    signature_path: Optional[str] = None
+    
+    # Audit
+    device_id: Optional[str] = None
     
     extinguisher: Optional[Extinguisher] = Relationship(back_populates="inspections")
-    images: list["InspectionImage"] = Relationship(back_populates="inspection")
 
-class InspectionImage(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    inspection_id: uuid.UUID = Field(foreign_key="inspection.id")
-    image_url: str
-    caption: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    
-    inspection: Optional[Inspection] = Relationship(back_populates="images")
-
-class AuditLog(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    user_id: uuid.UUID = Field(foreign_key="user.id")
-    action: str
-    details: Optional[str] = None # JSON string
-    ip_address: Optional[str] = None
-    device_info: Optional[str] = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-
+class CompanySettings(SQLModel, table=True):
+    id: int = Field(default=1, primary_key=True)
+    company_name: str = Field(default="Siddhi Industrial Solutions")
+    logo_url: Optional[str] = None
+    updated_at: datetime = Field(default_factory=datetime.utcnow)

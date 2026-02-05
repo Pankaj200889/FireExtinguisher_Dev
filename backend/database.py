@@ -1,15 +1,16 @@
 from sqlmodel import SQLModel, create_engine, Session
 from typing import Generator
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+# Get DB URL from env or fallback to local SQLite
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    DATABASE_URL = f"sqlite:///{os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fire_safety.db')}"
 
-# Default to SQLite for ease of setup if Postgres not provided, but intended for Postgres
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./fire_safety.db")
-
-# check_same_thread needed for SQLite only
-connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+# Handle args based on DB type
+connect_args = {}
+if "sqlite" in DATABASE_URL:
+    connect_args = {"check_same_thread": False}
 
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
 

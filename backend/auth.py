@@ -1,36 +1,40 @@
+# from passlib.context import CryptContext
+import bcrypt
+from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from typing import Optional
+
+# CONSTANTS - CHANGE IN PROD
+SECRET_KEY = "simplesecret"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 1 Day
+
+# pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def verify_password(plain, hashed):
+    # return pwd_context.verify(plain, hashed)
+    if isinstance(hashed, str):
+        hashed = hashed.encode('utf-8')
+    return bcrypt.checkpw(plain.encode('utf-8'), hashed)
+
+def get_password_hash(password):
+    # return pwd_context.hash(password)
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlmodel import Session, select
 from database import get_session
 from models import User
-import os
 
-SECRET_KEY = os.getenv("SECRET_KEY", "change_this_to_a_secure_random_key")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 async def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
     credentials_exception = HTTPException(
@@ -45,53 +49,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: Session
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    
+        
     statement = select(User).where(User.username == username)
     user = session.exec(statement).first()
     if user is None:
         raise credentials_exception
-    return user
-
-async def get_current_active_user(current_user: User = Depends(get_current_user)):
-    # Add 'active' field check if implementing deactivation
-    return current_user
-
-async def get_admin_user(current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Not authorized")
-    return current_user
-
-async def get_optional_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[User]:
-    # Custom loop to handle no token or invalid token gracefully
-    if not token:
-        return None
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            return None
-        
-        # We need a session here, but standard Depends injection is tricky inside a manual call.
-        # Alternatively, we rely on the route to pass the user or handle this cleaner.
-        # EASIER: Just use the existing get_current_user logic but wrap it.
-        pass
-    except JWTError:
-        return None
-    return None # Placeholder, see refined implementation below
-
-# REFINED IMPLEMENTATION for simple dependency injection
-# We need to access the request header manually or use a lenient dependency
-async def get_optional_current_user(token: Optional[str] = Depends(oauth2_scheme), session: Session = Depends(get_session)) -> Optional[User]:
-    if not token:
-        return None
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            return None
-    except JWTError:
-        return None
-    
-    statement = select(User).where(User.username == username)
-    user = session.exec(statement).first()
     return user

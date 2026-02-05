@@ -1,12 +1,8 @@
 fastapi
-uvicorn[standard]
+uvicorn
 sqlmodel
-psycopg2-binary
-python-multipart
 python-jose[cryptography]
-passlib[bcrypt]
-email-validator
-qrcode[pil]
-bcrypt==3.2.2
-openpyxl
-reportlab
+python-multipart
+bcrypt
+psycopg2-binary
+cloudinary
