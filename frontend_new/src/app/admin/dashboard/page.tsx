@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Plus, QrCode, LogOut, Camera, Flame, FireExtinguisher, ChevronRight, User, FileText, Download, Activity } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useForm } from 'react-hook-form';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 
 import Link from 'next/link';
 import QRCodeGenerator from '@/components/QRCodeGenerator';
@@ -48,7 +48,7 @@ export default function AdminDashboard() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false); // Profile Modal
     const [isScannerOpen, setIsScannerOpen] = useState(false);
-    const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+    const scannerRef = useRef<Html5Qrcode | null>(null);
     const { register, handleSubmit, reset } = useForm();
     const { register: registerProfile, handleSubmit: handleSubmitProfile, reset: resetProfile } = useForm(); // Separate form for profile
     const [submitting, setSubmitting] = useState(false);
@@ -67,35 +67,39 @@ export default function AdminDashboard() {
     // ... existing useEffects (Scanner, Auth, LoadData) ...
     useEffect(() => {
         if (isScannerOpen) {
+            // Small delay to ensure DOM element "reader" exists
             const timer = setTimeout(() => {
-                if (!scannerRef.current) {
-                    try {
-                        const scanner = new Html5QrcodeScanner(
-                            "reader",
-                            { fps: 10, qrbox: { width: 250, height: 250 } },
-                            false
-                        );
-                        scanner.render((decodedText: string) => {
-                            console.log("Scanned:", decodedText);
-                            const id = decodedText.split('/').pop();
-                            try { scanner.clear(); } catch (e) { }
+                const html5QrCode = new Html5Qrcode("reader");
+                scannerRef.current = html5QrCode;
+
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    (decodedText) => {
+                        console.log("Scanned:", decodedText);
+                        const id = decodedText.split('/').pop();
+                        html5QrCode.stop().then(() => {
+                            html5QrCode.clear();
                             setIsScannerOpen(false);
-                            router.push(`/extinguisher/${id}`);
-                        }, (error: any) => {
-                            // ignore failures
-                        });
-                        scannerRef.current = scanner;
-                    } catch (err) {
-                        console.error("Scanner init error", err);
+                            if (id) router.push(`/extinguisher/${id}`);
+                        }).catch(err => console.error("Stop failed", err));
+                    },
+                    (errorMessage) => {
+                        // parse error, ignore
                     }
-                }
+                ).catch(err => {
+                    console.error("Error starting scanner", err);
+                    alert("Camera failed to start. Please ensure permissions are granted.");
+                    setIsScannerOpen(false);
+                });
             }, 100);
-            return () => clearTimeout(timer);
-        } else {
-            if (scannerRef.current) {
-                try { scannerRef.current.clear(); } catch (e) { }
-                scannerRef.current = null;
-            }
+
+            return () => {
+                clearTimeout(timer);
+                if (scannerRef.current && scannerRef.current.isScanning) {
+                    scannerRef.current.stop().then(() => scannerRef.current?.clear()).catch(console.error);
+                }
+            };
         }
     }, [isScannerOpen, router]);
 
@@ -146,7 +150,7 @@ export default function AdminDashboard() {
                 sl_no: data.sl_no,
                 type: data.type,
                 location: data.location,
-                capacity: data.capacity,
+                capacity: `${data.capacity} ${data.capacity_unit || ''}`.trim(),
                 make: data.make || "Generic",
                 year_of_manufacture: data.year || 2024
             });
@@ -614,7 +618,15 @@ export default function AdminDashboard() {
                                     </div>
                                     <div>
                                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Capacity</label>
-                                        <input {...register('capacity')} defaultValue="6KG" className="block w-full bg-slate-50 border border-slate-200 rounded-xl p-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500" />
+                                        <div className="flex gap-2">
+                                            <input {...register('capacity')} defaultValue="6" className="block w-full bg-slate-50 border border-slate-200 rounded-xl p-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500" placeholder="Value" />
+                                            <select {...register('capacity_unit')} className="bg-slate-50 border border-slate-200 rounded-xl px-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="KG">KG</option>
+                                                <option value="LTR">LTR</option>
+                                                <option value="NOS">NOS</option>
+                                                <option value="LBS">LBS</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
                                 <div>
