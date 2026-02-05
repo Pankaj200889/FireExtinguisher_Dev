@@ -265,6 +265,7 @@ export default function InspectionForm({ extinguisherId, extinguisherData, onSuc
                     ref={fileInputRef}
                     hidden
                     accept="image/*"
+                    capture="environment"
                     multiple
                     onChange={handleFileSelect}
                 />
