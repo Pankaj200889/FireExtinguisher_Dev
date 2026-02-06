@@ -21,8 +21,7 @@ class UserUpdate(SQLModel):
     password: Optional[str] = None
     role: Optional[str] = None
 
-class Extinguisher(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+class ExtinguisherBase(SQLModel):
     sl_no: str = Field(unique=True, index=True)
     type: str  # CO2, ABC, Water
     capacity: str
@@ -37,10 +36,13 @@ class Extinguisher(SQLModel, table=True):
     status: str = Field(default="Pending") # Operational, Non-Operational, Pending
     hydro_pressure_tested_on: Optional[datetime] = None
     next_hydro_pressure_test_due: Optional[datetime] = None
-    
+
+class Extinguisher(ExtinguisherBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     inspections: List["Inspection"] = Relationship(back_populates="extinguisher")
 
-class ExtinguisherRead(Extinguisher):
+class ExtinguisherRead(ExtinguisherBase):
+    id: uuid.UUID
     inspections: List["Inspection"] = []
 
 class Inspection(SQLModel, table=True):
