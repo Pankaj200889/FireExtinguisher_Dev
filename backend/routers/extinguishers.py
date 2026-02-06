@@ -152,6 +152,7 @@ def get_extinguisher(
             "mode": mode,
             "last_inspection_date": last_inspection.inspection_date if last_inspection else None,
             "last_inspector_name": last_inspector_name,
+            "last_inspection_status": extinguisher.status, # Frontend expects this alias
             "next_service_due": next_due_date,
             "debug_info": debug_info
         }
