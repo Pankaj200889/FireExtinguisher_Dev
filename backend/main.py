@@ -39,7 +39,15 @@ def run_migrations():
         add_col("inspection", "pressure_tested_on TIMESTAMP")
         add_col("inspection", "date_of_discharge TIMESTAMP")
         add_col("inspection", "refilled_on TIMESTAMP")
+        add_col("inspection", "refilled_on TIMESTAMP")
         add_col("inspection", "due_for_refilling TIMESTAMP") # Explicit field added recently if missing
+        
+        # Phase 6.10: Missing Audit Columns
+        add_col("inspection", "observation VARCHAR DEFAULT 'Ok'")
+        add_col("inspection", "remarks VARCHAR")
+        add_col("inspection", "device_id VARCHAR")
+        add_col("inspection", "photo_path VARCHAR")
+        add_col("inspection", "signature_path VARCHAR")
 
         # CompanySettings
         add_col("companysettings", "timezone VARCHAR DEFAULT 'Asia/Kolkata'")
