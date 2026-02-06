@@ -78,88 +78,87 @@ def get_extinguisher(
         # Not a UUID, try to interpret as Serial Number
         pass
 
-    # 1. Fetch Extinguisher
-    if ext_uuid:
-        extinguisher = session.get(Extinguisher, ext_uuid)
-    else:
-        # Search by Serial Number (Case Insensitive logic would be better, but strict is fine for now if we ensure data matches)
-        # Using col(Extinguisher.sl_no).ilike(id) might be db specific.
-        # Let's try explicit Python side match if list is small, or just standard query.
-        # For robustness, we'll strip whitespace.
-        extinguisher = session.exec(select(Extinguisher).where(Extinguisher.sl_no == id.strip())).first()
-        
-        # Fallback: try upper case
-        if not extinguisher:
-             extinguisher = session.exec(select(Extinguisher).where(Extinguisher.sl_no == id.strip().upper())).first()
-
-
-    if not extinguisher:
-        raise HTTPException(status_code=404, detail="Extinguisher not found")
-    
-    # Ensure we have the UUID for further logic since logic relies on IDs
-    ext_uuid = extinguisher.id
-
-    
-    # Determine Mode
-    # Default to VIEW
-    mode = "VIEW"
-    debug_info = []
-
-    # Get User (if any)
-    user = get_optional_user_from_token(authorization)
-    debug_info.append(f"User: {user}")
-
-    if user:
-         # Inspector is viewing. Check for 48h Lock.
-         if last_inspection_at:
-             # Ensure both are timezone aware or both naive
-             now_utc = datetime.utcnow()
-             last_insp = last_inspection_at
-             
-             # If last_insp is timezone aware (Postgres default), make now_utc aware
-             if last_insp.tzinfo is not None:
-                 from datetime import timezone
-                 now_utc = now_utc.replace(tzinfo=timezone.utc)
-             
-             hours_since = (now_utc - last_insp).total_seconds() / 3600
-             debug_info.append(f"Hours since last: {hours_since}")
-             if hours_since < 48:
-                 # Logic Requirement: Prevent duplicate records by same or other inspector
-                 mode = "LOCKED"
-             else:
-                 mode = "EDIT"
-         else:
-             mode = "EDIT" # No previous inspection
-    
-    # If no user (Public), mode stays "VIEW" regardless of lock status
-    # This fulfills: "ability to scan... and showcase details... (anyone... view mode)"
-    
-    # Fetch Last Inspector Name
-    last_inspector_name = "N/A"
-    next_due_date = extinguisher.next_service_due
-    
-    if last_inspection:
-        # If inspection has specific next due date, use it, else fallback to extinguisher field
-        if last_inspection.due_for_refilling:
-            # Update the transient variable (or the model if we wanted to persist, but just viewing now)
-            next_due_date = last_inspection.due_for_refilling
-        
-        if last_inspection.inspector_id:
-             inspector_user = session.get(User, last_inspection.inspector_id)
-             if inspector_user:
-                 last_inspector_name = inspector_user.username
-             else:
-                 last_inspector_name = "Unknown User"
+    # Wrap entire logic in try/catch to debug 500 errors
+    try:
+        # 1. Fetch Extinguisher
+        if ext_uuid:
+            extinguisher = session.get(Extinguisher, ext_uuid)
         else:
-             last_inspector_name = "System/Legacy"
+            # Search by Serial Number
+            extinguisher = session.exec(select(Extinguisher).where(Extinguisher.sl_no == id.strip())).first()
+            if not extinguisher:
+                 extinguisher = session.exec(select(Extinguisher).where(Extinguisher.sl_no == id.strip().upper())).first()
 
-    # Response
-    return {
-        **extinguisher.model_dump(),
-        "mode": mode,
-        "lastInspectionAt": last_inspection_at,
-        "last_inspector": last_inspector_name,
-        "next_service_due": next_due_date, # Override with latest inspection data if available
-        "last_inspection_status": "Operational" if not last_inspection or last_inspection.remarks != "Non-Operational" else "Non-Operational",
-        "debug_info": "; ".join(debug_info)
-    }
+        if not extinguisher:
+            return JSONResponse(status_code=404, content={"detail": "Extinguisher not found"})
+        
+        # Ensure we have the UUID for further logic since logic relies on IDs
+        ext_uuid = extinguisher.id
+        ext_uuid_str = str(ext_uuid)
+
+        # Determine Mode
+        # Default to VIEW
+        mode = "VIEW"
+        debug_info = []
+
+        # Get User (if any)
+        user = get_optional_user_from_token(authorization)
+        debug_info.append(f"User: {user}")
+
+        # Check 48h Lock (Need last inspection regardless of user)
+        statement = select(Inspection).where(Inspection.extinguisher_id == ext_uuid).order_by(Inspection.inspection_date.desc())
+        last_inspection = session.exec(statement).first()
+        last_inspection_at = last_inspection.inspection_date if last_inspection else None
+
+        if user:
+             # Inspector is viewing. Check for 48h Lock.
+             if last_inspection_at:
+                 # Ensure both are timezone aware or both naive
+                 now_utc = datetime.utcnow()
+                 last_insp = last_inspection_at
+                 
+                 # If last_insp is timezone aware (Postgres default), make now_utc aware
+                 if last_insp.tzinfo is not None:
+                     from datetime import timezone
+                     now_utc = now_utc.replace(tzinfo=timezone.utc)
+                 
+                 hours_since = (now_utc - last_insp).total_seconds() / 3600
+                 debug_info.append(f"Hours since last: {hours_since}")
+                 if hours_since < 48:
+                     mode = "LOCKED"
+                 else:
+                     mode = "EDIT"
+             else:
+                 mode = "EDIT" # No previous inspection
+        
+        # If no user (Public), mode stays "VIEW" regardless of lock status
+
+        # Fetch Last Inspector Name
+        last_inspector_name = "N/A"
+        next_due_date = extinguisher.next_service_due
+        
+        if last_inspection:
+            if last_inspection.due_for_refilling:
+                next_due_date = last_inspection.due_for_refilling
+            
+            if last_inspection.inspector_id:
+                 inspector_user = session.get(User, last_inspection.inspector_id)
+                 if inspector_user:
+                     last_inspector_name = inspector_user.username
+
+        # Response
+        return {
+            **extinguisher.model_dump(),
+            "mode": mode,
+            "last_inspection_date": last_inspection.inspection_date if last_inspection else None,
+            "last_inspector_name": last_inspector_name,
+            "next_service_due": next_due_date,
+            "debug_info": debug_info
+        }
+
+    except Exception as e:
+        import traceback
+        error_msg = f"CRASH: {str(e)} | {traceback.format_exc()}"
+        print(error_msg)
+        # Return 200 with error info so frontend displays it instead of Network Error
+        return JSONResponse(status_code=500, content={"detail": error_msg})
