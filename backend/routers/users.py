@@ -76,10 +76,10 @@ def delete_user(
          raise HTTPException(status_code=400, detail="Cannot delete your own account")
          
     user.is_active = False
-    session.add(db_user)
+    session.add(user)
     session.commit()
-    session.refresh(db_user)
-    return db_user
+    session.refresh(user)
+    return user
 
 @router.post("/{user_id}/reset-password", response_model=UserRead)
 def reset_password(

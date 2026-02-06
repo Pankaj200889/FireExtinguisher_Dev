@@ -146,6 +146,58 @@ def export_history(session: Session = Depends(get_session)):
     response.headers["Content-Disposition"] = f"attachment; filename=audit_log_{datetime.utcnow().strftime('%Y%m%d')}.csv"
     return response
 
+@router.get("/export-csv")
+def export_inspections_csv(session: Session = Depends(get_session)):
+    """
+    Export complete inspection history as CSV, matching Annex H format.
+    """
+    import csv
+    from io import StringIO
+    from fastapi.responses import StreamingResponse
+    
+    # Query all inspections with relations
+    statement = (
+        select(Inspection, User, Extinguisher)
+        .join(User, Inspection.inspector_id == User.id, isouter=True)
+        .join(Extinguisher, Inspection.extinguisher_id == Extinguisher.id, isouter=True)
+        .order_by(Inspection.inspection_date.desc())
+    )
+    results = session.exec(statement).all()
+    
+    # Create CSV in memory
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Headers to match "Main Safety Audit Report"
+    writer.writerow([
+        "Date", "Inspector", "Extinguisher SN", "Location", 
+        "Type", "Capacity", "Status", "Observation", "Remarks",
+        "Refill Due", "Hydro Test Due", "Device ID"
+    ])
+    
+    for inspection, user, ext in results:
+        writer.writerow([
+            inspection.inspection_date.strftime("%Y-%m-%d %H:%M"),
+            user.username if user else "Unknown",
+            ext.sl_no if ext else "Deleted Asset",
+            ext.location if ext else "N/A",
+            ext.type if ext else "N/A",
+            ext.capacity if ext else "N/A",
+            ext.status if ext else "N/A",
+            inspection.observation or "Ok",
+            inspection.remarks or "",
+            inspection.due_for_refilling.strftime("%Y-%m-%d") if inspection.due_for_refilling else "N/A",
+            inspection.next_hydro_pressure_test_due.strftime("%Y-%m-%d") if inspection.next_hydro_pressure_test_due else "N/A",
+            inspection.device_id or "N/A"
+        ])
+        
+    output.seek(0)
+    
+    response = StreamingResponse(iter([output.getvalue()]), media_type="text/csv")
+    filename = f"Safety_Audit_Report_{datetime.utcnow().strftime('%Y%m%d')}.csv"
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    return response
+
 @router.post("/")
 def create_inspection(
     inspection_data: InspectionCreate,

@@ -193,6 +193,32 @@ def get_extinguisher(
         "debug_info": debug_info
     }
 
+@router.delete("/{id}")
+def delete_extinguisher(
+    id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    ext_uuid = None
+    try:
+        from uuid import UUID
+        ext_uuid = UUID(id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+        
+    extinguisher = session.get(Extinguisher, ext_uuid)
+    if not extinguisher:
+        raise HTTPException(status_code=404, detail="Extinguisher not found")
+        
+    # Soft delete
+    extinguisher.is_active = False
+    session.add(extinguisher)
+    session.commit()
+    return {"ok": True, "detail": "Extinguisher deleted successfully"}
+
 
 
 
