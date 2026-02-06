@@ -10,9 +10,10 @@ export default function DebugPage() {
     useEffect(() => {
         // 1. Capture Environment
         setEnv({
-            apiBase: process.env.NEXT_PUBLIC_API_URL || 'Using Default (localhost)',
+            processEnv: process.env.NEXT_PUBLIC_API_URL || 'Missing in process.env',
+            axiosBaseURL: api.defaults.baseURL, // <--- This is what really matters
             token: typeof window !== 'undefined' ? localStorage.getItem('token') : 'SSR',
-            browser: typeof navigator !== 'undefined' ? navigator.userAgent : 'SSR'
+            hostname: window.location.hostname
         });
 
         // 2. Test Fetch
