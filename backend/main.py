@@ -61,6 +61,22 @@ def run_migrations():
         conn.commit()
     print("Migrations complete.")
 
+@app.get("/debug/fix-db")
+def fix_db():
+    """
+    Emergency endpoint to manually trigger database repair.
+    """
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.begin()
+            conn.execute(text("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
+            conn.execute(text("ALTER TABLE extinguisher ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
+            conn.commit()
+        return {"status": "SUCCESS", "message": "Database repaired. Columns 'is_active' added."}
+    except Exception as e:
+        return {"status": "ERROR", "detail": str(e)}
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Lifespan starting...")
