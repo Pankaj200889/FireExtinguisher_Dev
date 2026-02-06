@@ -21,11 +21,12 @@ def get_optional_user_from_token(token: Optional[str]) -> Optional[str]:
     Manually decode token to find user, return username or None.
     Does not raise 401, just returns None if invalid.
     """
-    if not token:
-        return None
     try:
+        if not token:
+            return None
+        
         # Remove 'Bearer ' if present
-        if token.startswith("Bearer "):
+        if token.lower().startswith("bearer "):
             parts = token.split(" ")
             if len(parts) > 1:
                 token = parts[1]
@@ -34,7 +35,8 @@ def get_optional_user_from_token(token: Optional[str]) -> Optional[str]:
         
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload.get("sub")
-    except JWTError:
+    except Exception as e:
+        print(f"Token Decode Error: {e}")
         return None
 
 @router.post("/")
@@ -74,6 +76,9 @@ def get_extinguisher(
     authorization: Optional[str] = Header(None),
     session: Session = Depends(get_session)
 ):
+    import logging
+    print(f"DEBUG: get_extinguisher called for ID: {id}")
+    
     ext_uuid = None
     try:
         from uuid import UUID
@@ -116,30 +121,47 @@ def get_extinguisher(
         debug_info.append(f"User: {user}")
 
         # Check 48h Lock (Need last inspection regardless of user)
-        statement = select(Inspection).where(Inspection.extinguisher_id == ext_uuid).order_by(Inspection.inspection_date.desc())
-        last_inspection = session.exec(statement).first()
-        last_inspection_at = last_inspection.inspection_date if last_inspection else None
+        last_inspection = None
+        last_inspection_at = None
+        
+        try:
+            print("DEBUG: Querying Inspection History...")
+            statement = select(Inspection).where(Inspection.extinguisher_id == ext_uuid).order_by(Inspection.inspection_date.desc())
+            last_inspection = session.exec(statement).first()
+            if last_inspection:
+                last_inspection_at = last_inspection.inspection_date
+                debug_info.append(f"Last Insp: {last_inspection_at}")
+        except Exception as e:
+            print(f"DEBUG ERROR: Inspection Query Failed: {e}")
+            debug_info.append(f"Inspection Error: {str(e)}")
+            # Continue without inspection history (treat as never inspected)
 
-        if user:
-             # Inspector is viewing. Check for 48h Lock.
-             if last_inspection_at:
-                 # Ensure both are timezone aware or both naive
-                 now_utc = datetime.utcnow()
-                 last_insp = last_inspection_at
-                 
-                 # If last_insp is timezone aware (Postgres default), make now_utc aware
-                 if last_insp.tzinfo is not None:
-                     from datetime import timezone
-                     now_utc = now_utc.replace(tzinfo=timezone.utc)
-                 
-                 hours_since = (now_utc - last_insp).total_seconds() / 3600
-                 debug_info.append(f"Hours since last: {hours_since}")
-                 if hours_since < 48:
-                     mode = "LOCKED"
+        try:
+            if user:
+                 # Inspector is viewing. Check for 48h Lock.
+                 if last_inspection_at:
+                     # Ensure both are timezone aware or both naive
+                     now_utc = datetime.utcnow()
+                     last_insp = last_inspection_at
+                     
+                     # If last_insp is timezone aware (Postgres default), make now_utc aware
+                     if last_insp.tzinfo is not None:
+                         from datetime import timezone
+                         now_utc = now_utc.replace(tzinfo=timezone.utc)
+                     
+                     hours_since = (now_utc - last_insp).total_seconds() / 3600
+                     debug_info.append(f"Hours since last: {hours_since}")
+                     if hours_since < 48:
+                         mode = "LOCKED"
+                     else:
+                         mode = "EDIT"
                  else:
-                     mode = "EDIT"
-             else:
-                 mode = "EDIT" # No previous inspection
+                     mode = "EDIT" # No previous inspection
+        except Exception as e:
+            debug_info.append(f"Lock Logic Error: {e}")
+            mode = "EDIT" # Fallback
+            
+        # If no user (Public), mode stays "VIEW" regardless of lock status
         
         # If no user (Public), mode stays "VIEW" regardless of lock status
 
