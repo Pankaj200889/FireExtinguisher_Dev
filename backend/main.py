@@ -44,6 +44,10 @@ def run_migrations():
         # CompanySettings
         add_col("companysettings", "timezone VARCHAR DEFAULT 'Asia/Kolkata'")
         
+        # Soft Delete (Phase 6.9)
+        add_col('"user"', "is_active BOOLEAN DEFAULT TRUE") # User is reserved keyword in Postgres, needs quotes
+        add_col("extinguisher", "is_active BOOLEAN DEFAULT TRUE")
+
         conn.commit()
     print("Migrations complete.")
 
