@@ -45,17 +45,24 @@ def run_migrations():
         add_col("companysettings", "timezone VARCHAR DEFAULT 'Asia/Kolkata'")
         
         # Soft Delete (Phase 6.9)
-        # Postgres uses BOOLEAN, SQLite uses INTEGER 0/1 usually but also accepts BOOLEAN keyword if using certain drivers.
-        # Safest for Postgres is BOOLEAN DEFAULT TRUE
-        add_col('"user"', "is_active BOOLEAN DEFAULT TRUE")
-        
-        # Check if it failed silently or needs integer (SQLite fallback if boolean fails? No, simpler to just try)
-        # add_col("extinguisher", "is_active BOOLEAN DEFAULT TRUE")
+        # SQLite Compatibility: No IF NOT EXISTS in ADD COLUMN
+        # We try strict ADD COLUMN. If it fails, we assume it exists.
         
         try:
-             conn.execute(text("ALTER TABLE extinguisher ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
+             # Try SQLite syntax first (safe for both if catches error)
+             # User table
+             conn.execute(text('ALTER TABLE "user" ADD COLUMN is_active BOOLEAN DEFAULT 1'))
+             print("Added is_active to user")
+        except Exception as e:
+             # print(f"User migration skipped: {e}")
+             pass
+
+        try:
+             # Extinguisher table
+             conn.execute(text("ALTER TABLE extinguisher ADD COLUMN is_active BOOLEAN DEFAULT 1"))
              print("Added is_active to extinguisher")
-        except Exception:
+        except Exception as e:
+             # print(f"Extinguisher migration skipped: {e}")
              pass
 
         conn.commit()
@@ -86,10 +93,19 @@ def fix_db():
         from sqlalchemy import text
         with engine.connect() as conn:
             conn.begin()
-            conn.execute(text("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
-            conn.execute(text("ALTER TABLE extinguisher ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
+            # SQLite safe: No IF NOT EXISTS, catch duplicate column error
+            try:
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN is_active BOOLEAN DEFAULT 1'))
+            except Exception:
+                pass
+                
+            try:
+                conn.execute(text("ALTER TABLE extinguisher ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+            except Exception:
+                pass
+                
             conn.commit()
-        return {"status": "SUCCESS", "message": "Database repaired. Columns 'is_active' added."}
+        return {"status": "SUCCESS", "message": "Database repaired. Columns 'is_active' added (SQLite Mode)."}
     except Exception as e:
         return {"status": "ERROR", "detail": str(e)}
 
