@@ -62,10 +62,13 @@ def get_stats(session: Session = Depends(get_session)):
 
     # Aggregate
     for insp in recent_inspections:
-        insp_date = insp.inspection_date.date()
+        # Use simple date comparison
+        insp_date_str = insp.inspection_date.strftime("%Y-%m-%d")
         for day in days_map:
-            if day["date"] == insp_date:
+            # day["date"] is a date object
+            if day["date"].strftime("%Y-%m-%d") == insp_date_str:
                 day["value"] += 1
+                break
                 
     # Calculate Comparison (Previous 7 days)
     previous_start_date = start_date - timedelta(days=7)
