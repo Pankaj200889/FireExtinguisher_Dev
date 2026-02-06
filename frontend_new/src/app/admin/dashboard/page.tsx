@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
-import { Plus, QrCode, LogOut, Camera, Flame, FireExtinguisher, ChevronRight, User, FileText, Download, Activity, Users, UserPlus, Shield, Lock } from 'lucide-react';
+import { Plus, QrCode, LogOut, Camera, Flame, FireExtinguisher, ChevronRight, User, FileText, Download, Activity, Users, UserPlus, Shield, Lock, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useForm } from 'react-hook-form';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -361,7 +361,7 @@ export default function AdminDashboard() {
             const annualDates = getDates(i => i.inspection_type === 'Annual', 'inspection_date');
 
             return [
-                index + 1,
+                ext.sl_no,
                 ext.type,
                 ext.capacity || '-',
                 ext.year_of_manufacture || '-',
@@ -457,6 +457,32 @@ export default function AdminDashboard() {
         a.href = url;
         a.download = `Fire_Extinguishers_List_${new Date().toISOString().split('T')[0]}.csv`;
         a.click();
+    };
+
+    const handleDeleteUser = async (userId: string, username: string) => {
+        if (!confirm(`Are you sure you want to remove user "${username}"?`)) return;
+
+        try {
+            await api.delete(`/users/${userId}`);
+            // Optimistic update
+            setUsers(users.filter(u => u.id !== userId));
+        } catch (error) {
+            console.error(error);
+            alert("Failed to delete user. Ensure you are Admin.");
+        }
+    };
+
+    const handleDeleteAsset = async (assetId: string, sl_no: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm(`Are you sure you want to remove asset "${sl_no}"?`)) return;
+
+        try {
+            await api.delete(`/extinguishers/${assetId}`);
+            setExtinguishers(extinguishers.filter(ex => ex.id !== assetId));
+        } catch (error) {
+            console.error(error);
+            alert("Failed to delete asset.");
+        }
     };
 
     return (
@@ -812,6 +838,15 @@ export default function AdminDashboard() {
                                             >
                                                 <QrCode className="h-5 w-5" />
                                             </button>
+                                            {user?.role === 'admin' && (
+                                                <button
+                                                    onClick={(e) => handleDeleteAsset(ext.id, ext.sl_no, e)}
+                                                    className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-sm ml-2"
+                                                    title="Delete Asset"
+                                                >
+                                                    <Trash2 className="h-5 w-5" />
+                                                </button>
+                                            )}
                                         </div>
 
                                         <div className="flex items-center justify-between border-t border-slate-50 pt-4">
@@ -933,6 +968,15 @@ export default function AdminDashboard() {
                                                 >
                                                     <Lock className="h-4 w-4" />
                                                 </button>
+                                                {u.username !== user?.username && (
+                                                    <button
+                                                        onClick={() => handleDeleteUser(u.id, u.username)}
+                                                        className="p-2 text-slate-400 hover:text-red-600 transition-colors"
+                                                        title="Remove User"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
