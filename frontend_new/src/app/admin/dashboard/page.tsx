@@ -342,9 +342,21 @@ export default function AdminDashboard() {
                     .filter(filterFn)
                     .map(i => i[dateField])
                     .filter(d => d)
-                    .map(d => fmt(d as string));
+                    .map(d => {
+                        // Force dd/mm/yyyy format
+                        const date = new Date(d as string);
+                        return date.toLocaleDateString('en-GB', {
+                            day: '2-digit', month: '2-digit', year: 'numeric'
+                        });
+                    });
                 return [...new Set(dates)].join('\n') || '-';
             };
+
+            // Helper for specific inspection types
+            // Monthly, Quarterly, Annual
+            const monthlyDates = getDates(i => i.inspection_type === 'Monthly', 'inspection_date');
+            const quarterlyDates = getDates(i => i.inspection_type === 'Quarterly', 'inspection_date');
+            const annualDates = getDates(i => i.inspection_type === 'Annual', 'inspection_date');
 
             return [
                 index + 1,
@@ -353,26 +365,24 @@ export default function AdminDashboard() {
                 ext.year_of_manufacture || '-',
                 ext.make || '-',
                 ext.location,
-                // Monthly Dates (Not standard in H-1 but requested?) - User asked for Monthly, Quarterly, Annual
-                // However Annex H usually asks for Quarterly/Annual. User requested ALL.
-                // I will add Monthly to the "Remarks" or a separate column if space permits.
-                // Actually user asked specifically: "Monthly Inspection Dates", "Quarterly...", "Annual..."
-                // I'll add Monthly column.
-                getDates(i => i.inspection_type === 'Monthly', 'inspection_date'),
-                getDates(i => i.inspection_type === 'Quarterly', 'inspection_date'),
-                getDates(i => i.inspection_type === 'Annual', 'inspection_date'),
+                monthlyDates,
+                quarterlyDates,
+                annualDates,
 
                 getDates(i => !!i.pressure_tested_on, 'pressure_tested_on'),
                 getDates(i => !!i.date_of_discharge, 'date_of_discharge'),
                 getDates(i => !!i.refilled_on, 'refilled_on'),
 
-                // Hydro Test (New)
-                // Use history OR current status? User asked for "Hydro Pressure Tested On" column.
-                // I will use the history + current status if available.
-                // Actually, let's use the explicit field from Extinguisher if generic, or inspection history.
-                // Best to use inspection history for "Dates".
-                getDates(i => !!i.hydro_pressure_tested_on, 'hydro_pressure_tested_on'),
-                getDates(i => !!i.next_hydro_pressure_test_due, 'next_hydro_pressure_test_due'),
+                // Hydro Test (Column 13)
+                // Priority: flattened field on Extinguisher -> then Inspection history
+                ext.hydro_pressure_tested_on ?
+                    new Date(ext.hydro_pressure_tested_on).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                    : getDates(i => !!i.hydro_pressure_tested_on, 'hydro_pressure_tested_on'),
+
+                // Next Hydro (Column 14)
+                ext.next_hydro_pressure_test_due ?
+                    new Date(ext.next_hydro_pressure_test_due).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                    : getDates(i => !!i.next_hydro_pressure_test_due, 'next_hydro_pressure_test_due'),
 
                 ext.last_inspection_status || '-'
             ];
@@ -383,7 +393,7 @@ export default function AdminDashboard() {
             head: [[
                 'Sl', 'Type', 'Cap', 'Year', 'Make', 'Location',
                 'Monthly', 'Quarterly', 'Annual',
-                'Pressure\nTest', 'Discharge', 'Refilled',
+                'Pressure\nTest', 'Date of\nDischarge', 'Refilled\nOn',
                 'Hydro\nTest', 'Next\nHydro', 'Status'
             ]],
             body: tableData,

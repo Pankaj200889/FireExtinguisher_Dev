@@ -177,6 +177,9 @@ def create_inspection(
         pressure_tested_on=inspection_data.pressure_tested_on,
         refilled_on=inspection_data.refilled_on,
         due_for_refilling=inspection_data.due_for_refilling,
+        date_of_discharge=inspection_data.date_of_discharge,
+        hydro_pressure_tested_on=inspection_data.hydro_pressure_tested_on,
+        next_hydro_pressure_test_due=inspection_data.next_hydro_pressure_test_due,
         photo_path=inspection_data.photo_path,
         signature_path=inspection_data.signature_path,
         device_id=inspection_data.device_id
@@ -194,6 +197,11 @@ def create_inspection(
         
     extinguisher.status = "Operational" # Default to Operational on new inspection unless remarks suggest otherwise
     
+    if inspection_data.hydro_pressure_tested_on:
+        extinguisher.hydro_pressure_tested_on = inspection_data.hydro_pressure_tested_on
+    if inspection_data.next_hydro_pressure_test_due:
+        extinguisher.next_hydro_pressure_test_due = inspection_data.next_hydro_pressure_test_due
+        
     session.add(extinguisher)
     session.commit()
     session.refresh(new_inspection)
