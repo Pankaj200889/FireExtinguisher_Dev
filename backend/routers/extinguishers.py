@@ -26,7 +26,11 @@ def get_optional_user_from_token(token: Optional[str]) -> Optional[str]:
     try:
         # Remove 'Bearer ' if present
         if token.startswith("Bearer "):
-            token = token.split(" ")[1]
+            parts = token.split(" ")
+            if len(parts) > 1:
+                token = parts[1]
+            else:
+                return None
         
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload.get("sub")
