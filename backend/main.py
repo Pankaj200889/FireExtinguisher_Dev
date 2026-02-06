@@ -119,6 +119,7 @@ def create_initial_admin():
     try:
         from models import User
         from auth import get_password_hash
+        from sqlmodel import Session, select
         
         with Session(engine) as session:
             # check if any user exists
