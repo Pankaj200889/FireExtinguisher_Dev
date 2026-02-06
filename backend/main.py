@@ -140,6 +140,50 @@ def fix_db():
     except Exception as e:
         return {"status": "ERROR", "detail": str(e)}
 
+@app.get("/debug/fix-schema")
+def fix_schema_created_at():
+    """
+    Emergency: Add created_at column if migration failed.
+    """
+    results = []
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.begin()
+            
+            # 1. User Table
+            try:
+                # Try Postgres
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN created_at TIMESTAMP DEFAULT NOW()'))
+                results.append("Added created_at to User (Postgres)")
+            except Exception as e_pg:
+                # Try SQLite
+                try:
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'))
+                    results.append("Added created_at to User (SQLite)")
+                except Exception as e_sq:
+                    results.append(f"User Failed: {e_pg} | {e_sq}")
+
+            # 2. Extinguisher Table
+            try:
+                # Try Postgres
+                conn.execute(text('ALTER TABLE extinguisher ADD COLUMN created_at TIMESTAMP DEFAULT NOW()'))
+                results.append("Added created_at to Extinguisher (Postgres)")
+            except Exception as e_pg:
+                # Try SQLite
+                try:
+                    conn.execute(text('ALTER TABLE extinguisher ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'))
+                    results.append("Added created_at to Extinguisher (SQLite)")
+                except Exception as e_sq:
+                    results.append(f"Extinguisher Failed: {e_pg} | {e_sq}")
+            
+            conn.commit()
+            
+        return {"status": "DONE", "details": results}
+
+    except Exception as e:
+        return {"status": "CRITICAL_ERROR", "detail": str(e)}
+
 @app.get("/debug/create-admin")
 def create_initial_admin():
     """
