@@ -67,6 +67,7 @@ export default function AdminDashboard() {
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<'dashboard' | 'team'>('dashboard');
     const [chartData, setChartData] = useState<{ name: string, value: number }[]>([]); // Real Data
+    const [statsSummary, setStatsSummary] = useState({ total: 0, change: 0, trend: 'up' }); // Real Summary
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -97,7 +98,21 @@ export default function AdminDashboard() {
 
     const loadStats = () => {
         api.get('/inspections/stats')
-            .then(res => setChartData(res.data))
+            .then(res => {
+                // Backend now returns { chart: [], total: 123, change: 10, trend: 'up' }
+                // Handle legacy or new format
+                if (res.data.chart) {
+                    setChartData(res.data.chart);
+                    setStatsSummary({
+                        total: res.data.total,
+                        change: res.data.change,
+                        trend: res.data.trend
+                    });
+                } else {
+                    // Fallback if backend not updated yet
+                    setChartData(res.data);
+                }
+            })
             .catch(console.error);
     };
 
@@ -591,8 +606,10 @@ export default function AdminDashboard() {
                                         <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Daily Trend</p>
                                     </div>
                                     <div className="text-right">
-                                        <h3 className="text-3xl font-black text-slate-800">17,407</h3>
-                                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">+12.5% vs Last Week</span>
+                                        <h3 className="text-3xl font-black text-slate-800">{statsSummary.total.toLocaleString()}</h3>
+                                        <span className={`text-xs font-bold px-2 py-1 rounded ${statsSummary.trend === 'up' ? 'text-blue-600 bg-blue-50' : 'text-red-600 bg-red-50'}`}>
+                                            {statsSummary.change >= 0 ? '+' : ''}{statsSummary.change}% vs Last Week
+                                        </span>
                                     </div>
                                 </div>
 

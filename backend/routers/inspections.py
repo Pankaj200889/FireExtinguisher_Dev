@@ -62,8 +62,33 @@ def get_stats(session: Session = Depends(get_session)):
             if day["date"] == insp_date:
                 day["value"] += 1
                 
-    # Return just name/value for Recharts
-    return [{"name": d["name"], "value": d["value"]} for d in days_map]
+    # Calculate Comparison (Previous 7 days)
+    previous_start_date = start_date - timedelta(days=7)
+    previous_period_statement = select(Inspection).where(
+        Inspection.inspection_date >= previous_start_date,
+        Inspection.inspection_date < start_date
+    )
+    previous_inspections = session.exec(previous_period_statement).all()
+    
+    current_total = len(recent_inspections)
+    previous_total = len(previous_inspections)
+    
+    percentage_change = 0.0
+    if previous_total > 0:
+        percentage_change = ((current_total - previous_total) / previous_total) * 100
+    elif current_total > 0:
+        percentage_change = 100.0 # Infinite growth if previous was 0
+        
+    trend = "up" if percentage_change >= 0 else "down"
+
+    # Return structured data
+    return {
+        "chart": [{"name": d["name"], "value": d["value"]} for d in days_map],
+        "total": current_total,
+        "change": round(percentage_change, 1),
+        "trend": trend,
+        "previous_total": previous_total
+    }
 
 @router.get("/export")
 def export_history(session: Session = Depends(get_session)):
