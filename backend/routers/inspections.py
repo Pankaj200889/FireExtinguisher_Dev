@@ -21,6 +21,50 @@ class InspectionCreate(BaseModel):
     image_urls: Optional[List[str]] = None # Just in case frontend sends it
     device_id: Optional[str] = None
 
+@router.get("/stats")
+def get_stats(session: Session = Depends(get_session)):
+    """
+    Get inspection counts for the last 7 days.
+    """
+    from sqlalchemy import func, cast, Date
+    
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=6) # Last 7 days including today
+    
+    # SQLite/Postgres compatibility for date truncating can be tricky with plain SQLModel
+    # For simplicity and DB agnostic behavior with small datasets:
+    # Query all inspections in last 7 days and aggregate in Python.
+    # (Optimized approach would use group_by in SQL if DB is strictly Postgres)
+    
+    statement = select(Inspection).where(Inspection.inspection_date >= start_date)
+    recent_inspections = session.exec(statement).all()
+    
+    # Initialize dictionary for last 7 days
+    stats = {}
+    for i in range(7):
+        day = (start_date + timedelta(days=i)).strftime("%a") # Mon, Tue
+        # stats[day] = 0 # If we want strict days, but we want strict ordered list
+    
+    # Better structure: List of {name: "Mon", value: 0}
+    days_map = []
+    for i in range(7):
+        d = start_date + timedelta(days=i)
+        days_map.append({
+            "date": d.date(), 
+            "name": d.strftime("%a"), # Mon
+            "value": 0
+        })
+
+    # Aggregate
+    for insp in recent_inspections:
+        insp_date = insp.inspection_date.date()
+        for day in days_map:
+            if day["date"] == insp_date:
+                day["value"] += 1
+                
+    # Return just name/value for Recharts
+    return [{"name": d["name"], "value": d["value"]} for d in days_map]
+
 @router.get("/export")
 def export_history(session: Session = Depends(get_session)):
     """

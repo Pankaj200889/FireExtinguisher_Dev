@@ -66,6 +66,8 @@ export default function AdminDashboard() {
     const { logout, user } = useAuth();
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<'dashboard' | 'team'>('dashboard');
+    const [chartData, setChartData] = useState<{ name: string, value: number }[]>([]); // Real Data
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -82,69 +84,22 @@ export default function AdminDashboard() {
     const { register: registerReset, handleSubmit: handleSubmitReset, reset: resetReset } = useForm();
     const [submitting, setSubmitting] = useState(false);
 
-    // Mock Data for Chart
-    const data = [
-        { name: 'Mon', value: 120 },
-        { name: 'Tue', value: 132 },
-        { name: 'Wed', value: 101 },
-        { name: 'Thu', value: 134 },
-        { name: 'Fri', value: 190 },
-        { name: 'Sat', value: 230 },
-        { name: 'Sun', value: 210 },
-    ];
-
-    // ... existing useEffects (Scanner, Auth, LoadData) ...
-    useEffect(() => {
-        if (isScannerOpen) {
-            // Small delay to ensure DOM element "reader" exists
-            const timer = setTimeout(() => {
-                const html5QrCode = new Html5Qrcode("reader");
-                scannerRef.current = html5QrCode;
-
-                html5QrCode.start(
-                    { facingMode: "environment" },
-                    { fps: 15 }, // Full screen scanning, no box constraint
-                    (decodedText) => {
-                        console.log("Scanned:", decodedText);
-                        const id = decodedText.split('/').pop();
-                        html5QrCode.stop().then(() => {
-                            html5QrCode.clear();
-                            setIsScannerOpen(false);
-                            if (id) router.push(`/extinguisher/${id}`);
-                        }).catch(err => console.error("Stop failed", err));
-                    },
-                    (errorMessage) => {
-                        // parse error, ignore
-                    }
-                ).catch(err => {
-                    console.error("Error starting scanner", err);
-                    alert("Camera failed to start. Please ensure permissions are granted.");
-                    setIsScannerOpen(false);
-                });
-            }, 100);
-
-            return () => {
-                clearTimeout(timer);
-                if (scannerRef.current && scannerRef.current.isScanning) {
-                    scannerRef.current.stop().then(() => scannerRef.current?.clear()).catch(console.error);
-                }
-            };
-        }
-    }, [isScannerOpen, router]);
-
-    useEffect(() => {
-        if (!loading && !user) {
-            router.replace('/login');
-        }
-    }, [user, loading, router]);
+    // ...
 
     useEffect(() => {
         if (user) {
             loadData();
             loadSettings();
+            loadStats(); // Fetch Chart Data
             if (user.role === 'admin') loadUsers();
         }
     }, [user]);
+
+    const loadStats = () => {
+        api.get('/inspections/stats')
+            .then(res => setChartData(res.data))
+            .catch(console.error);
+    };
 
     const loadUsers = () => {
         api.get('/users/').then(res => setUsers(res.data)).catch(console.error);
@@ -643,7 +598,7 @@ export default function AdminDashboard() {
 
                                 <div className="w-full h-[250px] -ml-2">
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={data}>
+                                        <LineChart data={chartData && chartData.length > 0 ? chartData : [{ name: 'No Data', value: 0 }]}>
                                             <XAxis
                                                 dataKey="name"
                                                 axisLine={false}
