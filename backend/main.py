@@ -45,8 +45,18 @@ def run_migrations():
         add_col("companysettings", "timezone VARCHAR DEFAULT 'Asia/Kolkata'")
         
         # Soft Delete (Phase 6.9)
-        add_col('"user"', "is_active BOOLEAN DEFAULT TRUE") # User is reserved keyword in Postgres, needs quotes
-        add_col("extinguisher", "is_active BOOLEAN DEFAULT TRUE")
+        # Postgres uses BOOLEAN, SQLite uses INTEGER 0/1 usually but also accepts BOOLEAN keyword if using certain drivers.
+        # Safest for Postgres is BOOLEAN DEFAULT TRUE
+        add_col('"user"', "is_active BOOLEAN DEFAULT TRUE")
+        
+        # Check if it failed silently or needs integer (SQLite fallback if boolean fails? No, simpler to just try)
+        # add_col("extinguisher", "is_active BOOLEAN DEFAULT TRUE")
+        
+        try:
+             conn.execute(text("ALTER TABLE extinguisher ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
+             print("Added is_active to extinguisher")
+        except Exception:
+             pass
 
         conn.commit()
     print("Migrations complete.")

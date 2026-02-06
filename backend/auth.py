@@ -50,8 +50,17 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: Session
     except JWTError:
         raise credentials_exception
         
-    statement = select(User).where(User.username == username)
-    user = session.exec(statement).first()
+    try:
+        statement = select(User).where(User.username == username)
+        user = session.exec(statement).first()
+    except Exception as e:
+        print(f"AUTH DB ERROR: {e}")
+        # If DB error (e.g. missing column), we can't authenticate.
+        # But returning 401 hides the 500. Let's return 500 to be honest or log it.
+        # For the user, they see 401 usually.
+        raise HTTPException(status_code=500, detail="Database Authentication Error")
+
     if user is None:
         raise credentials_exception
+        
     return user
