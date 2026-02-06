@@ -61,6 +61,22 @@ def run_migrations():
         conn.commit()
     print("Migrations complete.")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Lifespan starting...")
+    try:
+        init_db()
+        run_migrations()
+        print("Database initialized and migrated.")
+    except Exception as e:
+        print(f"Database init failed: {e}")
+    yield
+    print("Lifespan ending...")
+
+print("Creating FastAPI app...")
+app = FastAPI(title="Fire Extinguisher API (Rebuild)", lifespan=lifespan)
+
+# Emergency endpoint MUST be defined after app is created
 @app.get("/debug/fix-db")
 def fix_db():
     """
@@ -76,21 +92,6 @@ def fix_db():
         return {"status": "SUCCESS", "message": "Database repaired. Columns 'is_active' added."}
     except Exception as e:
         return {"status": "ERROR", "detail": str(e)}
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    print("Lifespan starting...")
-    try:
-        init_db()
-        run_migrations()
-        print("Database initialized and migrated.")
-    except Exception as e:
-        print(f"Database init failed: {e}")
-    yield
-    print("Lifespan ending...")
-
-print("Creating FastAPI app...")
-app = FastAPI(title="Fire Extinguisher API (Rebuild)", lifespan=lifespan)
 
 # Mount uploads directory to /static
 os.makedirs("uploads", exist_ok=True)
