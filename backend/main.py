@@ -45,25 +45,25 @@ def run_migrations():
         add_col("companysettings", "timezone VARCHAR DEFAULT 'Asia/Kolkata'")
         
         # Soft Delete (Phase 6.9)
-        # SQLite Compatibility: No IF NOT EXISTS in ADD COLUMN
-        # We try strict ADD COLUMN. If it fails, we assume it exists.
+        # Soft Delete (Phase 6.9)
+        # Robust Migration for both Postgres (DEFAULT TRUE) and SQLite (DEFAULT 1)
         
-        try:
-             # Try SQLite syntax first (safe for both if catches error)
-             # User table
-             conn.execute(text('ALTER TABLE "user" ADD COLUMN is_active BOOLEAN DEFAULT 1'))
-             print("Added is_active to user")
-        except Exception as e:
-             # print(f"User migration skipped: {e}")
-             pass
+        def safe_add_is_active(table_name):
+            try:
+                # Try Postgres Syntax first (standard)
+                conn.execute(text(f'ALTER TABLE {table_name} ADD COLUMN is_active BOOLEAN DEFAULT TRUE'))
+                print(f"Added is_active to {table_name} (Postgres)")
+            except Exception:
+                try:
+                    # Fallback to SQLite Syntax (DEFAULT 1, no IF NOT EXISTS support usually needed if we catch error)
+                    conn.execute(text(f'ALTER TABLE {table_name} ADD COLUMN is_active BOOLEAN DEFAULT 1'))
+                    print(f"Added is_active to {table_name} (SQLite)")
+                except Exception:
+                    # Likely already exists
+                    pass
 
-        try:
-             # Extinguisher table
-             conn.execute(text("ALTER TABLE extinguisher ADD COLUMN is_active BOOLEAN DEFAULT 1"))
-             print("Added is_active to extinguisher")
-        except Exception as e:
-             # print(f"Extinguisher migration skipped: {e}")
-             pass
+        safe_add_is_active('"user"')
+        safe_add_is_active("extinguisher")
 
         conn.commit()
     print("Migrations complete.")
