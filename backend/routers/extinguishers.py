@@ -195,9 +195,4 @@ def get_extinguisher(
 
 
 
-    except Exception as e:
-        import traceback
-        error_msg = f"CRASH: {str(e)} | {traceback.format_exc()}"
-        print(error_msg)
-        # Return 200 with error info so frontend displays it instead of Network Error
-        return JSONResponse(status_code=500, content={"detail": error_msg})
+
