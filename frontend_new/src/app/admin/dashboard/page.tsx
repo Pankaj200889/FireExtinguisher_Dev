@@ -96,6 +96,61 @@ export default function AdminDashboard() {
         }
     }, [user]);
 
+    // QR Scanner Logic
+    // QR Scanner Logic
+    useEffect(() => {
+        if (isScannerOpen && !scannerRef.current) {
+            const scanner = new Html5Qrcode("reader");
+            scannerRef.current = scanner;
+
+            scanner.start(
+                { facingMode: "environment" },
+                {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 }
+                },
+                (decodedText) => {
+                    // Handle Success
+                    console.log("Scanned:", decodedText);
+                    try {
+                        // Expected URL format: https://.../extinguisher/{id}
+                        const url = new URL(decodedText);
+                        const parts = url.pathname.split('/');
+                        const idIndex = parts.indexOf('extinguisher');
+                        if (idIndex !== -1 && parts[idIndex + 1]) {
+                            const id = parts[idIndex + 1];
+                            // Stop scanner before navigating
+                            scanner.stop().then(() => {
+                                scanner.clear();
+                                setIsScannerOpen(false);
+                                scannerRef.current = null;
+                                router.push(`/extinguisher/${id}`);
+                            }).catch(console.error);
+                        }
+                    } catch (e) {
+                        console.error("Invalid QR", e);
+                    }
+                },
+                (errorMessage) => {
+                    // Ignore parsing errors
+                }
+            ).catch(err => {
+                console.error("Failed to start scanner", err);
+            });
+        }
+
+        return () => {
+            if (scannerRef.current) {
+                scannerRef.current.stop().then(() => {
+                    scannerRef.current?.clear();
+                    scannerRef.current = null;
+                }).catch(err => {
+                    console.warn("Scanner stop warning:", err);
+                });
+            }
+        };
+    }, [isScannerOpen]);
+
     const loadStats = () => {
         api.get('/inspections/stats')
             .then(res => {
