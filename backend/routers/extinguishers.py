@@ -79,96 +79,41 @@ def get_extinguisher(
     import logging
     print(f"DEBUG: get_extinguisher called for ID: {id}")
     
-    ext_uuid = None
+    # --- SAFE MODE ---
+    # Simplified logic to prevent crashes
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.info(f"SAFE_GET: Fetching {id}")
+
     try:
-        from uuid import UUID
-        ext_uuid = UUID(id)
-    except ValueError:
-        # Not a UUID, try to interpret as Serial Number
-        pass
-
-    # Wrap entire logic in try/catch to debug 500 errors
-    try:
-        # 1. Fetch Extinguisher
-        if ext_uuid:
-            extinguisher = session.get(Extinguisher, ext_uuid)
-        else:
-            # Search by Serial Number
-            extinguisher = session.exec(select(Extinguisher).where(Extinguisher.sl_no == id.strip())).first()
-            if not extinguisher:
-                 extinguisher = session.exec(select(Extinguisher).where(Extinguisher.sl_no == id.strip().upper())).first()
-
-        if not extinguisher:
-            return JSONResponse(status_code=404, content={"detail": "Extinguisher not found"})
-        
-        # Ensure we have the UUID for further logic since logic relies on IDs
-        ext_uuid = extinguisher.id
-        ext_uuid_str = str(ext_uuid)
-
-        # Determine Mode
-        if mode == "maintenance":
-             # In maintenance mode, we might want to see even inactive ones? For now, standard rule applies.
+        # 1. basic fetch
+        # Search by ID or Serial (using string only to avoid UUID conversion crashes)
+        statement = select(Extinguisher).where((Extinguisher.id == id) | (Extinguisher.sl_no == id))
+        try:
+             # Try UUID conversion if possible for stricter ID match
+             as_uuid = uuid.UUID(id)
+             statement = select(Extinguisher).where(Extinguisher.id == as_uuid)
+        except:
              pass
              
-        if not extinguisher.is_active:
-             return JSONResponse(status_code=404, content={"detail": "Extinguisher not found (Deleted)"})
-
-        mode = "VIEW"
-        debug_info = []
-
-        # Get User (if any)
-        user = get_optional_user_from_token(authorization)
-        debug_info.append(f"User: {user}")
-
-        # Check 48h Lock (Need last inspection regardless of user)
-        last_inspection = None
-        last_inspection_at = None
+        extinguisher = session.exec(statement).first()
         
-        try:
-            print("DEBUG: Querying Inspection History...")
-            statement = select(Inspection).where(Inspection.extinguisher_id == ext_uuid).order_by(Inspection.inspection_date.desc())
-            last_inspection = session.exec(statement).first()
-            if last_inspection:
-                last_inspection_at = last_inspection.inspection_date
-                debug_info.append(f"Last Insp: {last_inspection_at}")
-        except Exception as e:
-            print(f"DEBUG ERROR: Inspection Query Failed: {e}")
-            debug_info.append(f"Inspection Error: {str(e)}")
-            # Continue without inspection history (treat as never inspected)
-
-        try:
-            if user:
-                 # Inspector is viewing. Check for 48h Lock.
-                 if last_inspection_at:
-                     # Ensure both are timezone aware or both naive
-                     now_utc = datetime.utcnow()
-                     last_insp = last_inspection_at
-                     
-                     # If last_insp is timezone aware (Postgres default), make now_utc aware
-                     if last_insp.tzinfo is not None:
-                         from datetime import timezone
-                         now_utc = now_utc.replace(tzinfo=timezone.utc)
-                     
-                     hours_since = (now_utc - last_insp).total_seconds() / 3600
-                     debug_info.append(f"Hours since last: {hours_since}")
-                     if hours_since < 48:
-                         mode = "LOCKED"
-                     else:
-                         mode = "EDIT"
-                 else:
-                     mode = "EDIT" # No previous inspection
-        except Exception as e:
-            debug_info.append(f"Lock Logic Error: {e}")
-            mode = "EDIT" # Fallback
+        if not extinguisher:
+            return JSONResponse(status_code=404, content={"detail": "Not Found"})
             
-        # If no user (Public), mode stays "VIEW" regardless of lock status
-        
-        # If no user (Public), mode stays "VIEW" regardless of lock status
-
-        # Fetch Last Inspector Name
-        last_inspector_name = "N/A"
-        next_due_date = extinguisher.next_service_due
-        
+        # 2. Return minimal data first
+        return {
+            "id": str(extinguisher.id),
+            "sl_no": extinguisher.sl_no,
+            "location": extinguisher.location,
+            "status": extinguisher.status,
+            "mode": "VIEW", # Force VIEW for now
+            "debug_info": ["Safe Mode Active"]
+        }
+    except Exception as e:
+        logger.error(f"CRASH: {e}")
+        return JSONResponse(status_code=500, content={"detail": f"Server Crash: {str(e)}"})        
         if last_inspection:
             if last_inspection.due_for_refilling:
                 next_due_date = last_inspection.due_for_refilling
