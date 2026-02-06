@@ -154,47 +154,86 @@ def export_inspections_csv(session: Session = Depends(get_session)):
     import csv
     from io import StringIO
     from fastapi.responses import StreamingResponse
+    from sqlalchemy.orm import selectinload
     
-    # Query all inspections with relations
+    # Query all active extinguishers with their inspections
     statement = (
-        select(Inspection, User, Extinguisher)
-        .join(User, Inspection.inspector_id == User.id, isouter=True)
-        .join(Extinguisher, Inspection.extinguisher_id == Extinguisher.id, isouter=True)
-        .order_by(Inspection.inspection_date.desc())
+        select(Extinguisher)
+        .where(Extinguisher.is_active == True)
+        .options(selectinload(Extinguisher.inspections))
+        # .order_by(Extinguisher.sl_no) # Optional: sort by SL No
     )
-    results = session.exec(statement).all()
+    extinguishers = session.exec(statement).all()
     
     # Create CSV in memory
     output = StringIO()
     writer = csv.writer(output)
     
-    # Headers to match "Main Safety Audit Report"
+    # Headers to match "Main Safety Audit Report" (Annex H)
     writer.writerow([
-        "Date", "Inspector", "Extinguisher SN", "Location", 
-        "Type", "Capacity", "Status", "Observation", "Remarks",
-        "Refill Due", "Hydro Test Due", "Device ID"
+        "SI No", "Type", "Capacity", "Year of Mfg", "Make", "Location", 
+        "Monthly", "Quarterly", "Annual", 
+        "Pressure Test", "Date of Discharge", "Refilled On", "Due for Refilling",
+        "Hydro Test", "Next Hydro", "Status", "Remarks"
     ])
     
-    for inspection, user, ext in results:
+    for ext in extinguishers:
+        # Sort inspections to easily find latest
+        # inspections is a list on the model (selectinload)
+        sorted_inspections = sorted(ext.inspections, key=lambda x: x.inspection_date, reverse=True)
+        
+        # Helper to find latest date for a specific type
+        def get_latest_date(insp_type):
+            for i in sorted_inspections:
+                if i.inspection_type == insp_type:
+                    return i.inspection_date.strftime("%d/%m/%Y")
+            return "-"
+
+        # Helper to format date if exists
+        def fmt_date(d):
+            return d.strftime("%d/%m/%Y") if d else "-"
+            
+        monthly_date = get_latest_date("Monthly")
+        quarterly_date = get_latest_date("Quarterly")
+        annual_date = get_latest_date("Annual")
+        
+        # Per models.py, 'refilled_on' and 'date_of_discharge' are on Inspection model, not Extinguisher model directly?
+        # Let's check Extinguisher model again.
+        # ExtinguisherBase: last_inspection_date, next_service_due, status, hydro_pressure_tested_on, next_hydro_pressure_test_due.
+        # It DOES NOT have refilled_on or date_of_discharge directly. 
+        # So we must get them from the latest relevant inspection.
+
+        def get_latest_attr(attr_name):
+             for i in sorted_inspections:
+                 val = getattr(i, attr_name, None)
+                 if val:
+                     return val.strftime("%d/%m/%Y")
+             return "-"
+
         writer.writerow([
-            inspection.inspection_date.strftime("%Y-%m-%d %H:%M"),
-            user.username if user else "Unknown",
-            ext.sl_no if ext else "Deleted Asset",
-            ext.location if ext else "N/A",
-            ext.type if ext else "N/A",
-            ext.capacity if ext else "N/A",
-            ext.status if ext else "N/A",
-            inspection.observation or "Ok",
-            inspection.remarks or "",
-            inspection.due_for_refilling.strftime("%Y-%m-%d") if inspection.due_for_refilling else "N/A",
-            inspection.next_hydro_pressure_test_due.strftime("%Y-%m-%d") if inspection.next_hydro_pressure_test_due else "N/A",
-            inspection.device_id or "N/A"
+            ext.sl_no,
+            ext.type,
+            ext.capacity,
+            ext.year_of_manufacture or "-",
+            ext.make or "-",
+            ext.location,
+            monthly_date,
+            quarterly_date,
+            annual_date,
+            get_latest_attr("pressure_tested_on"), 
+            get_latest_attr("date_of_discharge"),
+            get_latest_attr("refilled_on"),
+            get_latest_attr("due_for_refilling"), 
+            fmt_date(ext.hydro_pressure_tested_on),
+            fmt_date(ext.next_hydro_pressure_test_due),
+            ext.status,
+            sorted_inspections[0].remarks if sorted_inspections and sorted_inspections[0].remarks else "-"
         ])
         
     output.seek(0)
     
     response = StreamingResponse(iter([output.getvalue()]), media_type="text/csv")
-    filename = f"Safety_Audit_Report_{datetime.utcnow().strftime('%Y%m%d')}.csv"
+    filename = f"Main_Safety_Audit_Report_{datetime.utcnow().strftime('%d%m%Y')}.csv"
     response.headers["Content-Disposition"] = f"attachment; filename={filename}"
     return response
 
