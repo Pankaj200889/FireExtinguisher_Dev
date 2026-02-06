@@ -47,8 +47,10 @@ interface Inspection {
     pressure_tested_on?: string;
     date_of_discharge?: string;
     refilled_on?: string;
+    due_for_refilling?: string;
     hydro_pressure_tested_on?: string;
     next_hydro_pressure_test_due?: string;
+    remarks?: string;
 }
 
 interface CompanySettings {
@@ -372,6 +374,7 @@ export default function AdminDashboard() {
                 getDates(i => !!i.pressure_tested_on, 'pressure_tested_on'),
                 getDates(i => !!i.date_of_discharge, 'date_of_discharge'),
                 getDates(i => !!i.refilled_on, 'refilled_on'),
+                getDates(i => !!i.due_for_refilling, 'due_for_refilling'),
 
                 // Hydro Test (Column 13)
                 // Priority: flattened field on Extinguisher -> then Inspection history
@@ -384,7 +387,9 @@ export default function AdminDashboard() {
                     new Date(ext.next_hydro_pressure_test_due).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
                     : getDates(i => !!i.next_hydro_pressure_test_due, 'next_hydro_pressure_test_due'),
 
-                ext.last_inspection_status || '-'
+                ext.last_inspection_status || '-',
+                // Remarks
+                inspections.map(i => i.remarks).filter(Boolean).slice(0, 3).join(', ') || '-'
             ];
         });
 
@@ -393,8 +398,8 @@ export default function AdminDashboard() {
             head: [[
                 'Sl', 'Type', 'Cap', 'Year', 'Make', 'Location',
                 'Monthly', 'Quarterly', 'Annual',
-                'Pressure\nTest', 'Date of\nDischarge', 'Refilled\nOn',
-                'Hydro\nTest', 'Next\nHydro', 'Status'
+                'Pressure\nTest', 'Date of\nDischarge', 'Refilled\nOn', 'Due for\nRefilling',
+                'Hydro\nTest', 'Next\nHydro', 'Status', 'Remarks'
             ]],
             body: tableData,
             theme: 'grid',

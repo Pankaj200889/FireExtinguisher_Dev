@@ -109,24 +109,31 @@ export default function InspectionForm({ extinguisherId, extinguisherData, onSuc
             let signatureUrl = "mock_signature.png";
             // if (sigPad.current && !sigPad.current.isEmpty()) { ... }
 
+            // Helper to safe parse dates
+            const toISO = (dateStr: any) => {
+                if (!dateStr) return null;
+                const d = new Date(dateStr);
+                return isNaN(d.getTime()) ? null : d.toISOString();
+            };
+
             const payload = {
                 extinguisher_id: extinguisherId,
                 inspection_type: data.inspection_type,
                 observation: data.observation,
                 remarks: data.remarks,
 
-                // New Fields
-                pressure_tested_on: data.pressure_tested_on ? new Date(data.pressure_tested_on).toISOString() : null,
-                date_of_discharge: data.date_of_discharge ? new Date(data.date_of_discharge).toISOString() : null,
-                refilled_on: data.refilled_on ? new Date(data.refilled_on).toISOString() : null,
-                due_for_refilling: data.due_for_refilling ? new Date(data.due_for_refilling).toISOString() : null,
-                hydro_pressure_tested_on: data.hydro_pressure_tested_on ? new Date(data.hydro_pressure_tested_on).toISOString() : null,
-                next_hydro_pressure_test_due: data.next_hydro_pressure_test_due ? new Date(data.next_hydro_pressure_test_due).toISOString() : null,
+                // New Fields with safe parsing
+                pressure_tested_on: toISO(data.pressure_tested_on),
+                date_of_discharge: toISO(data.date_of_discharge),
+                refilled_on: toISO(data.refilled_on),
+                due_for_refilling: toISO(data.due_for_refilling),
+                hydro_pressure_tested_on: toISO(data.hydro_pressure_tested_on),
+                next_hydro_pressure_test_due: toISO(data.next_hydro_pressure_test_due),
 
                 signature_path: signatureUrl,
                 photo_path: imageUrls.length > 0 ? imageUrls[0] : null,
                 image_urls: imageUrls,
-                next_service_due: data.next_service_due ? new Date(data.next_service_due).toISOString() : null,
+                next_service_due: toISO(data.next_service_due),
                 device_id: localStorage.getItem('device_id')
             };
 
@@ -141,7 +148,12 @@ export default function InspectionForm({ extinguisherId, extinguisherData, onSuc
         }
     };
 
-    // Manual Refill Date - Removed Auto Calculation per User Request
+    // Helper for display date
+    const formatDate = (date: Date) => {
+        return date.toLocaleDateString('en-GB', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        });
+    };
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-10 pb-20">
@@ -311,7 +323,7 @@ export default function InspectionForm({ extinguisherId, extinguisherData, onSuc
                             <label className="text-[10px] font-bold text-blue-500 uppercase tracking-wider block absolute -top-1 left-3 bg-white px-2 rounded-full border border-blue-100 shadow-sm z-10">Next Monthly</label>
                             <input
                                 readOnly
-                                value={new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0]}
+                                value={formatDate(new Date(new Date().setMonth(new Date().getMonth() + 1)))}
                                 className="w-full px-4 py-3 text-lg font-black text-slate-700 bg-white border border-slate-200 rounded-xl focus:outline-none shadow-sm"
                             />
                         </div>
@@ -319,7 +331,7 @@ export default function InspectionForm({ extinguisherId, extinguisherData, onSuc
                             <label className="text-[10px] font-bold text-blue-500 uppercase tracking-wider block absolute -top-1 left-3 bg-white px-2 rounded-full border border-blue-100 shadow-sm z-10">Next Quarterly</label>
                             <input
                                 readOnly
-                                value={new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0]}
+                                value={formatDate(new Date(new Date().setMonth(new Date().getMonth() + 3)))}
                                 className="w-full px-4 py-3 text-lg font-black text-slate-700 bg-white border border-slate-200 rounded-xl focus:outline-none shadow-sm"
                             />
                         </div>
@@ -327,7 +339,7 @@ export default function InspectionForm({ extinguisherId, extinguisherData, onSuc
                             <label className="text-[10px] font-bold text-blue-500 uppercase tracking-wider block absolute -top-1 left-3 bg-white px-2 rounded-full border border-blue-100 shadow-sm z-10">Next Yearly</label>
                             <input
                                 readOnly
-                                value={new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]}
+                                value={formatDate(new Date(new Date().setFullYear(new Date().getFullYear() + 1)))}
                                 className="w-full px-4 py-3 text-lg font-black text-slate-700 bg-white border border-slate-200 rounded-xl focus:outline-none shadow-sm"
                             />
                         </div>
