@@ -79,49 +79,119 @@ def get_extinguisher(
     import logging
     print(f"DEBUG: get_extinguisher called for ID: {id}")
     
-    # --- SAFE MODE ---
-    # Simplified logic to prevent crashes
+    # --- RESTORED LOGIC WITH SAFETY GUARDS ---
+    # We now know connection is good. 
+    # We try to fetch everything, but catch specific subsystem failures.
+    
     import logging
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
-    logger.info(f"SAFE_GET: Fetching {id}")
+    # logging.basicConfig(level=logging.INFO) # Already set globally usually
+    # logger = logging.getLogger(__name__)
 
+    ext_uuid = None
     try:
-        # 1. basic fetch
-        # Search by ID or Serial (using string only to avoid UUID conversion crashes)
-        statement = select(Extinguisher).where((Extinguisher.id == id) | (Extinguisher.sl_no == id))
-        try:
-             # Try UUID conversion if possible for stricter ID match
-             as_uuid = uuid.UUID(id)
-             statement = select(Extinguisher).where(Extinguisher.id == as_uuid)
-        except:
-             pass
-             
-        extinguisher = session.exec(statement).first()
-        
+        from uuid import UUID
+        ext_uuid = UUID(id)
+    except ValueError:
+        pass
+
+    # 1. Fetch Extinguisher (Critical - must succeed)
+    try:
+        if ext_uuid:
+            extinguisher = session.get(Extinguisher, ext_uuid)
+        else:
+            extinguisher = session.exec(select(Extinguisher).where(Extinguisher.sl_no == id.strip())).first()
+            if not extinguisher:
+                 extinguisher = session.exec(select(Extinguisher).where(Extinguisher.sl_no == id.strip().upper())).first()
+
         if not extinguisher:
-            return JSONResponse(status_code=404, content={"detail": "Not Found"})
-            
-        # 2. Return minimal data first
-        return {
-            "id": str(extinguisher.id),
-            "sl_no": extinguisher.sl_no,
-            "location": extinguisher.location,
-            "status": extinguisher.status,
-            "mode": "VIEW", # Force VIEW for now
-            "debug_info": ["Safe Mode Active"]
-        }
+             # Try fallback to string ID if UUID failed earlier but it really was a string ID in DB (rare)
+             extinguisher = session.exec(select(Extinguisher).where(Extinguisher.id == id)).first()
+             
+        if not extinguisher:
+            return JSONResponse(status_code=404, content={"detail": "Extinguisher not found"})
+        
+        # Ensure we have the UUID
+        ext_uuid = extinguisher.id
+        
+        if not extinguisher.is_active:
+             return JSONResponse(status_code=404, content={"detail": "Extinguisher not found (Deleted)"})
+
     except Exception as e:
-        logger.error(f"CRASH: {e}")
-        return JSONResponse(status_code=500, content={"detail": f"Server Crash: {str(e)}"})        
+        print(f"CRASH in Extinguisher Fetch: {e}")
+        return JSONResponse(status_code=500, content={"detail": f"Database Error: {str(e)}"})
+
+    mode = "VIEW"
+    debug_info = []
+    last_inspection = None
+    last_inspection_at = None
+    last_inspector_name = "N/A"
+    next_due_date = extinguisher.next_service_due
+
+    # 2. Get User (Optional - Non-critical)
+    user = None
+    try:
+        user = get_optional_user_from_token(authorization)
+        debug_info.append(f"User: {user}")
+    except Exception as e:
+        debug_info.append(f"Auth Parse Error: {e}")
+
+    # 3. Fetch History (Semi-critical - fails gracefully)
+    try:
+        statement = select(Inspection).where(Inspection.extinguisher_id == ext_uuid).order_by(Inspection.inspection_date.desc())
+        last_inspection = session.exec(statement).first()
+        
         if last_inspection:
+            last_inspection_at = last_inspection.inspection_date
+            
+            # Update Next Due Date logic
             if last_inspection.due_for_refilling:
                 next_due_date = last_inspection.due_for_refilling
             
+            # Try fetch inspector name
             if last_inspection.inspector_id:
-                 inspector_user = session.get(User, last_inspection.inspector_id)
-                 if inspector_user:
-                     last_inspector_name = inspector_user.username
+                 try:
+                    inspector_user = session.get(User, last_inspection.inspector_id)
+                    if inspector_user:
+                        last_inspector_name = inspector_user.username
+                 except:
+                    pass
+    except Exception as e:
+        print(f"Inspection History Failed: {e}")
+        debug_info.append(f"History Error: {str(e)}")
+
+    # 4. Logic: Locking (Depends on History)
+    try:
+        if user:
+             # Inspector is viewing
+             if last_inspection_at:
+                 # Date math
+                 now_utc = datetime.utcnow()
+                 last_insp = last_inspection_at
+                 if last_insp.tzinfo is not None:
+                     from datetime import timezone
+                     now_utc = now_utc.replace(tzinfo=timezone.utc)
+                 
+                 hours_since = (now_utc - last_insp).total_seconds() / 3600
+                 if hours_since < 48:
+                     mode = "LOCKED"
+                 else:
+                     mode = "EDIT"
+             else:
+                 mode = "EDIT"
+    except Exception as e:
+        debug_info.append(f"Lock Logic Error: {e}")
+        mode = "EDIT"
+
+    return {
+        **extinguisher.model_dump(),
+        "id": str(extinguisher.id), # Ensure ID is string
+        "mode": mode,
+        "last_inspection_date": last_inspection_at,
+        "last_inspector_name": last_inspector_name,
+        "last_inspection_status": extinguisher.status,
+        "next_service_due": next_due_date,
+        "debug_info": debug_info
+    }
 
         # Response
         return {
