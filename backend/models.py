@@ -3,11 +3,23 @@ from sqlmodel import Field, SQLModel, Relationship
 from datetime import datetime
 import uuid
 
-class User(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+class UserBase(SQLModel):
     username: str = Field(index=True, unique=True)
     role: str = Field(default="inspector")  # 'admin', 'inspector'
+
+class User(UserBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     password_hash: str
+
+class UserCreate(UserBase):
+    password: str
+
+class UserRead(UserBase):
+    id: uuid.UUID
+
+class UserUpdate(SQLModel):
+    password: Optional[str] = None
+    role: Optional[str] = None
 
 class Extinguisher(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)

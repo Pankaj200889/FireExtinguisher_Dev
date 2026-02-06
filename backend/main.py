@@ -37,9 +37,10 @@ app.add_middleware(
 app.include_router(extinguishers.router)
 app.include_router(inspections.router)
 app.include_router(upload.router)
-from routers import auth, settings
+from routers import auth, settings, users
 app.include_router(auth.router)
 app.include_router(settings.router)
+app.include_router(users.router)
 
 @app.get("/")
 def read_root():

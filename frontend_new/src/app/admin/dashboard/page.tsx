@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
-import { Plus, QrCode, LogOut, Camera, Flame, FireExtinguisher, ChevronRight, User, FileText, Download, Activity } from 'lucide-react';
+import { Plus, QrCode, LogOut, Camera, Flame, FireExtinguisher, ChevronRight, User, FileText, Download, Activity, Users, UserPlus, Shield, Lock } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useForm } from 'react-hook-form';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -21,13 +21,19 @@ interface Extinguisher {
     type: string;
     location: string;
     qr_code_url?: string;
-    status: string; // Correct field from backend
-    last_inspection_status?: string; // Legacy/Optional
+    status: string;
+    last_inspection_status?: string;
     next_service_due?: string;
     capacity?: string;
     make?: string;
     year_of_manufacture?: number;
     last_inspection_date?: string;
+}
+
+interface AppUser {
+    id: string;
+    username: string;
+    role: string;
 }
 
 
@@ -45,12 +51,19 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const { logout, user } = useAuth();
     const router = useRouter();
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'team'>('dashboard');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false); // Profile Modal
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+    const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+    const [isResetModalOpen, setIsResetModalOpen] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const [users, setUsers] = useState<AppUser[]>([]);
+    const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const { register, handleSubmit, reset } = useForm();
-    const { register: registerProfile, handleSubmit: handleSubmitProfile, reset: resetProfile } = useForm(); // Separate form for profile
+    const { register: registerProfile, handleSubmit: handleSubmitProfile, reset: resetProfile } = useForm();
+    const { register: registerUser, handleSubmit: handleSubmitUser, reset: resetUser } = useForm();
+    const { register: registerReset, handleSubmit: handleSubmitReset, reset: resetReset } = useForm();
     const [submitting, setSubmitting] = useState(false);
 
     // Mock Data for Chart
@@ -113,8 +126,13 @@ export default function AdminDashboard() {
         if (user) {
             loadData();
             loadSettings();
+            if (user.role === 'admin') loadUsers();
         }
     }, [user]);
+
+    const loadUsers = () => {
+        api.get('/users/').then(res => setUsers(res.data)).catch(console.error);
+    };
 
     const loadSettings = () => {
         api.get('/settings/')
@@ -185,6 +203,42 @@ export default function AdminDashboard() {
         } catch (e: any) {
             alert("Failed to update profile");
             console.error(e);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleCreateUser = async (data: any) => {
+        setSubmitting(true);
+        try {
+            await api.post('/users/', {
+                username: data.username,
+                role: data.role,
+                password: data.password
+            });
+            alert("User Created Successfully!");
+            setIsUserModalOpen(false);
+            resetUser();
+            loadUsers();
+        } catch (e: any) {
+            alert(e.response?.data?.detail || "Failed to create user");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleResetPassword = async (data: any) => {
+        if (!selectedUser) return;
+        setSubmitting(true);
+        try {
+            await api.post(`/users/${selectedUser.id}/reset-password`, {
+                password: data.password
+            });
+            alert("Password Reset Successfully!");
+            setIsResetModalOpen(false);
+            resetReset();
+        } catch (e: any) {
+            alert(e.response?.data?.detail || "Failed to reset password");
         } finally {
             setSubmitting(false);
         }
@@ -341,12 +395,18 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Pill Navigation (Scrollable on Mobile) */}
-                <div className="flex bg-slate-100 p-1.5 rounded-full overflow-x-auto no-scrollbar w-full md:w-auto scroll-smooth">
-                    <button onClick={scrollToTop} className="px-5 py-2 rounded-full bg-blue-100 text-blue-700 font-bold text-sm shadow-sm transition-all whitespace-nowrap flex-shrink-0">Summary</button>
-                    {user?.role === 'admin' && (
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 md:pb-0">
+                    <button onClick={() => { setActiveTab('dashboard'); scrollToTop(); }} className={`px-5 py-2 rounded-full font-bold text-sm transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'text-slate-500 hover:bg-white hover:text-slate-700'}`}>Overview</button>
+                    {user?.role === 'admin' && activeTab === 'dashboard' && (
                         <>
                             <button onClick={scrollToRegister} className="px-5 py-2 rounded-full text-slate-500 font-semibold text-sm hover:bg-white hover:text-slate-700 transition-all whitespace-nowrap flex-shrink-0">Register</button>
-                            <button onClick={scrollToReports} className="px-5 py-2 rounded-full text-slate-500 font-semibold text-sm hover:bg-white hover:text-slate-700 transition-all whitespace-nowrap flex-shrink-0">Reports</button>
+                            <button onClick={scrollToReports} className="px-5 py-2 rounded-full text-slate-500 font-semibold text-sm hover:bg-white hover:text-slate-700 transition-all whitespace-nowrap flex-shrink-0">Compliance</button>
+                        </>
+                    )}
+                    {user?.role === 'admin' && (
+                        <>
+                            <button onClick={() => setActiveTab('team')} className={`px-5 py-2 rounded-full font-bold text-sm transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'team' ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'text-slate-500 hover:bg-white hover:text-slate-700'}`}>Manage Team</button>
+                            <button onClick={() => setIsProfileModalOpen(true)} className="px-5 py-2 rounded-full text-slate-500 font-semibold text-sm hover:bg-white hover:text-slate-700 transition-all whitespace-nowrap flex-shrink-0">Profile</button>
                         </>
                     )}
                     <button onClick={() => setIsScannerOpen(true)} className="px-5 py-2 rounded-full text-slate-500 font-semibold text-sm hover:bg-white hover:text-slate-700 transition-all whitespace-nowrap flex-shrink-0">Scan QR</button>
@@ -368,8 +428,14 @@ export default function AdminDashboard() {
                 {/* 2. Header Section */}
                 <div className="flex justify-between items-end mb-10">
                     <div>
-                        <h1 className="text-4xl font-black text-slate-800 mb-2">Inspection Summary</h1>
-                        <p className="text-slate-500 font-medium">Real-time inspections and asset status overview.</p>
+                        <h1 className="text-4xl font-black text-slate-800 mb-2">
+                            {activeTab === 'dashboard' ? 'Inspection Summary' : 'Team Management'}
+                        </h1>
+                        <p className="text-slate-500 font-medium">
+                            {activeTab === 'dashboard'
+                                ? 'Real-time inspections and asset status overview.'
+                                : 'Manage safety officers and system access.'}
+                        </p>
                     </div>
                     <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100">
                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
@@ -377,205 +443,324 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                {/* 3. Stats Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-                    {/* Left: Chart Placeholder (Increased Height) */}
-                    <div className="lg:col-span-2 bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative overflow-hidden min-h-[300px] flex flex-col justify-between">
-                        <div className="flex justify-between items-start mb-4 relative z-10">
-                            <div>
-                                <h3 className="text-lg font-bold text-slate-700">Inspection Volume</h3>
-                                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Daily Trend</p>
-                            </div>
-                            <div className="text-right">
-                                <h3 className="text-3xl font-black text-slate-800">17,407</h3>
-                                <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">+12.5% vs Last Week</span>
-                            </div>
+
+
+                {/* Modals ... */}
+                {/* ... existing modals ... */}
+
+                {/* New User Modal */}
+                {isUserModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-md">
+                        <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl">
+                            <h3 className="text-2xl font-black text-slate-800 mb-6">Create Authorized User</h3>
+                            <form onSubmit={handleSubmitUser(handleCreateUser)} className="space-y-5">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Username</label>
+                                    <input {...registerUser('username', { required: true })} className="block w-full bg-slate-50 border border-slate-200 rounded-xl p-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder="e.g. officer_name" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Role</label>
+                                    <select {...registerUser('role')} className="block w-full bg-slate-50 border border-slate-200 rounded-xl p-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="inspector">Safety Inspector</option>
+                                        <option value="admin">Admin Access</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Password</label>
+                                    <input {...registerUser('password', { required: true })} type="password" className="block w-full bg-slate-50 border border-slate-200 rounded-xl p-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder="Min 8 chars, 1 num, 1 special" />
+                                    <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wide">Must include at least 1 number and 1 special character.</p>
+                                </div>
+                                <div className="mt-8 flex gap-3">
+                                    <button type="button" onClick={() => setIsUserModalOpen(false)} className="flex-1 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-colors">Cancel</button>
+                                    <button type="submit" disabled={submitting} className="flex-1 py-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+                                        {submitting ? 'Creating...' : 'Create Account'}
+                                    </button>
+                                </div>
+                            </form>
                         </div>
-
-                        <div className="w-full h-[250px] -ml-2">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={data}>
-                                    <XAxis
-                                        dataKey="name"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 'bold' }}
-                                        dy={10}
-                                    />
-                                    <Tooltip
-                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                        itemStyle={{ color: '#1e293b', fontWeight: 'bold' }}
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="value"
-                                        stroke="#3b82f6"
-                                        strokeWidth={4}
-                                        dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
-                                        activeDot={{ r: 6, strokeWidth: 0 }}
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-
-                    {/* Right: Stats Column */}
-                    <div className="space-y-6">
-                        {/* Blue Gradient Card */}
-                        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-500">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
-
-                            <h3 className="text-xs font-bold text-blue-100 uppercase tracking-widest mb-2">Total Active Assets</h3>
-                            <div className="text-6xl font-black mb-8">{totalAssets}</div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-white/10 rounded-xl p-3 border border-white/10 backdrop-blur-sm">
-                                    <span className="block text-[10px] text-blue-200 font-bold uppercase">Operational</span>
-                                    <span className="text-xl font-bold">{operationalCount}</span>
-                                </div>
-                                <div className="bg-white/10 rounded-xl p-3 border border-white/10 backdrop-blur-sm">
-                                    <span className="block text-[10px] text-blue-200 font-bold uppercase">Pending</span>
-                                    <span className="text-xl font-bold">{totalAssets - operationalCount}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Smaller White Stats */}
-                        <div className="grid grid-cols-2 gap-6">
-                            <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow">
-                                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center mb-3 text-red-500">
-                                    <Flame className="h-5 w-5" />
-                                </div>
-                                <div className="text-2xl font-black text-slate-800">{criticalCount}</div>
-                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Critical Issues</div>
-                            </div>
-                            <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow">
-                                <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center mb-3 text-orange-500">
-                                    <QrCode className="h-5 w-5" />
-                                </div>
-                                <div className="text-2xl font-black text-slate-800">{scanRate}%</div>
-                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Scan Rate</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-
-                {/* 4. Asset / Machine List */}
-                <div id="register-section" className="flex justify-between items-center mb-6 pt-10 border-t border-slate-200">
-                    <h3 className="text-xl font-bold text-slate-800">Registered Fire Extinguishers</h3>
-                    {user?.role === 'admin' && (
-                        <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="bg-black text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 flex items-center gap-2"
-                        >
-                            <Plus className="h-4 w-4" /> Add Asset
-                        </button>
-                    )}
-                </div>
-
-                {loading ? (
-                    <div className="bg-white rounded-[2rem] p-16 text-center border border-slate-100">
-                        <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-                        <p className="text-slate-500 font-medium">Loading Assets...</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {extinguishers.map((ext) => (
-                            <div
-                                key={ext.id}
-                                onClick={() => router.push(`/extinguisher/${ext.id}`)}
-                                className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-100 transition-all cursor-pointer group relative overflow-hidden flex flex-col"
-                            >
-                                <div className="flex justify-between items-start mb-6">
-                                    <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                        <FireExtinguisher className="h-6 w-6" />
-                                    </div>
-                                    <div className="bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
-                                        <span className="text-xs font-bold text-slate-500">{ext.type}</span>
-                                    </div>
-                                </div>
-
-                                {/* Serial & Location */}
-                                <div className="flex-grow">
-                                    <h3 className="text-xl font-black text-slate-800 mb-1 group-hover:text-blue-600 transition-colors">{ext.sl_no}</h3>
-                                    <p className="text-sm font-medium text-slate-400 mb-6">{ext.location}</p>
-                                </div>
-
-                                {/* QR Code Display (Upfront) */}
-                                <div className="mb-6 flex justify-center bg-slate-50 p-4 rounded-xl border border-slate-100 group-hover:bg-white group-hover:shadow-md transition-all">
-                                    {/* Construct full URL for QR */}
-                                    {/* In a real app, this should be the full URL. Using ID relative path for now or frontend URL */}
-                                    <QRCodeGenerator value={`${window.location.origin}/extinguisher/${ext.id}`} size={120} />
-                                </div>
-
-                                <div className="flex items-center justify-between border-t border-slate-50 pt-4">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-2 h-2 rounded-full ${(ext.status === 'Operational' || ext.last_inspection_status === 'Operational') ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{ext.status || ext.last_inspection_status || 'Pending'}</span>
-                                    </div>
-                                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                                        <ChevronRight className="h-4 w-4" />
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
                     </div>
                 )}
 
-                {/* 5. Reports Section */}
-                {user?.role === 'admin' && (
-                    <div id="reports-section" className="mt-16 pt-10 border-t border-slate-200">
-                        <div className="flex justify-between items-end mb-8">
-                            <div>
-                                <h3 className="text-2xl font-black text-slate-800 mb-2">Compliance Reports</h3>
-                                <p className="text-slate-500 font-medium">Generate official reports for Safety Audits & Govt. Compliance.</p>
+                {/* Reset Password Modal */}
+                {isResetModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-md">
+                        <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl">
+                            <h3 className="text-2xl font-black text-slate-800 mb-6">Reset Password</h3>
+                            <p className="text-slate-500 font-medium mb-6">Updating password for <span className="text-blue-600 font-bold">{selectedUser?.username}</span></p>
+                            <form onSubmit={handleSubmitReset(handleResetPassword)} className="space-y-5">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">New Password</label>
+                                    <input {...registerReset('password', { required: true })} type="password" className="block w-full bg-slate-50 border border-slate-200 rounded-xl p-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder="Complexity required" />
+                                </div>
+                                <div className="mt-8 flex gap-3">
+                                    <button type="button" onClick={() => setIsResetModalOpen(false)} className="flex-1 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-colors">Cancel</button>
+                                    <button type="submit" disabled={submitting} className="flex-1 py-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+                                        {submitting ? 'Resetting...' : 'Update Password'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'dashboard' && (
+                    <div className="space-y-10">
+                        {/* 3. Stats Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+                            {/* Left: Chart Placeholder (Increased Height) */}
+                            <div className="lg:col-span-2 bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative overflow-hidden min-h-[300px] flex flex-col justify-between">
+                                <div className="flex justify-between items-start mb-4 relative z-10">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-slate-700">Inspection Volume</h3>
+                                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Daily Trend</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <h3 className="text-3xl font-black text-slate-800">17,407</h3>
+                                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">+12.5% vs Last Week</span>
+                                    </div>
+                                </div>
+
+                                <div className="w-full h-[250px] -ml-2">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={data}>
+                                            <XAxis
+                                                dataKey="name"
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 'bold' }}
+                                                dy={10}
+                                            />
+                                            <Tooltip
+                                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                                itemStyle={{ color: '#1e293b', fontWeight: 'bold' }}
+                                            />
+                                            <Line
+                                                type="monotone"
+                                                dataKey="value"
+                                                stroke="#3b82f6"
+                                                strokeWidth={4}
+                                                dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                                                activeDot={{ r: 6, strokeWidth: 0 }}
+                                            />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* Right: Stats Column */}
+                            <div className="space-y-6">
+                                {/* Blue Gradient Card */}
+                                <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-500">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+
+                                    <h3 className="text-xs font-bold text-blue-100 uppercase tracking-widest mb-2">Total Active Assets</h3>
+                                    <div className="text-6xl font-black mb-8">{totalAssets}</div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="bg-white/10 rounded-xl p-3 border border-white/10 backdrop-blur-sm">
+                                            <span className="block text-[10px] text-blue-200 font-bold uppercase">Operational</span>
+                                            <span className="text-xl font-bold">{operationalCount}</span>
+                                        </div>
+                                        <div className="bg-white/10 rounded-xl p-3 border border-white/10 backdrop-blur-sm">
+                                            <span className="block text-[10px] text-blue-200 font-bold uppercase">Pending</span>
+                                            <span className="text-xl font-bold">{totalAssets - operationalCount}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Smaller White Stats */}
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow">
+                                        <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center mb-3 text-red-500">
+                                            <Flame className="h-5 w-5" />
+                                        </div>
+                                        <div className="text-2xl font-black text-slate-800">{criticalCount}</div>
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Critical Issues</div>
+                                    </div>
+                                    <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow">
+                                        <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center mb-3 text-orange-500">
+                                            <QrCode className="h-5 w-5" />
+                                        </div>
+                                        <div className="text-2xl font-black text-slate-800">{scanRate}%</div>
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Scan Rate</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* PDF Report Card */}
-                            <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group cursor-pointer" onClick={handleDownloadPDF}>
-                                <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center text-red-600 mb-6 group-hover:bg-red-600 group-hover:text-white transition-colors">
-                                    <FileText className="h-7 w-7" />
-                                </div>
-                                <h4 className="text-xl font-bold text-slate-800 mb-2">Main Safety Audit Report</h4>
-                                <p className="text-sm text-slate-400 mb-6">Standard 2A-Format compliance report including all active assets, inspection status, and due dates.</p>
-                                <span className="inline-flex items-center gap-2 text-red-600 font-bold text-sm uppercase tracking-wider group-hover:translate-x-2 transition-transform">
-                                    Download PDF <ChevronRight className="h-4 w-4" />
-                                </span>
-                            </div>
 
-                            {/* Excel Export Card */}
-                            <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group cursor-pointer" onClick={handleDownloadCSV}>
-                                <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center text-green-600 mb-6 group-hover:bg-green-600 group-hover:text-white transition-colors">
-                                    <Download className="h-7 w-7" />
-                                </div>
-                                <h4 className="text-xl font-bold text-slate-800 mb-2">Inventory Export (Excel)</h4>
-                                <p className="text-sm text-slate-400 mb-6">Complete raw data export of all registered machinery and assets in CSV format for analysis.</p>
-                                <span className="inline-flex items-center gap-2 text-green-600 font-bold text-sm uppercase tracking-wider group-hover:translate-x-2 transition-transform">
-                                    Download CSV <ChevronRight className="h-4 w-4" />
-                                </span>
-                            </div>
+                        {/* 4. Asset / Machine List */}
+                        <div id="register-section" className="flex justify-between items-center mb-6 pt-10 border-t border-slate-200">
+                            <h3 className="text-xl font-bold text-slate-800">Registered Fire Extinguishers</h3>
+                            {user?.role === 'admin' && (
+                                <button
+                                    onClick={() => setIsModalOpen(true)}
+                                    className="bg-black text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 flex items-center gap-2"
+                                >
+                                    <Plus className="h-4 w-4" /> Add Asset
+                                </button>
+                            )}
+                        </div>
 
-                            {/* Audit Log Export Card */}
-                            <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group cursor-pointer" onClick={() => {
-                                const link = document.createElement('a');
-                                link.href = `${api.defaults.baseURL}/inspections/export`;
-                                link.setAttribute('download', 'audit_log.csv');
-                                document.body.appendChild(link);
-                                link.click();
-                                link.remove();
-                            }}>
-                                <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                                    <Activity className="h-7 w-7" />
-                                </div>
-                                <h4 className="text-xl font-bold text-slate-800 mb-2">Export Activity Log</h4>
-                                <p className="text-sm text-slate-400 mb-6">Detailed history of all inspections including User ID, Device ID, timestamp, and actions.</p>
-                                <span className="inline-flex items-center gap-2 text-indigo-600 font-bold text-sm uppercase tracking-wider group-hover:translate-x-2 transition-transform">
-                                    Download Log <ChevronRight className="h-4 w-4" />
-                                </span>
+                        {loading ? (
+                            <div className="bg-white rounded-[2rem] p-16 text-center border border-slate-100">
+                                <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                                <p className="text-slate-500 font-medium">Loading Assets...</p>
                             </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {extinguishers.map((ext) => (
+                                    <div
+                                        key={ext.id}
+                                        onClick={() => router.push(`/extinguisher/${ext.id}`)}
+                                        className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-100 transition-all cursor-pointer group relative overflow-hidden flex flex-col"
+                                    >
+                                        <div className="flex justify-between items-start mb-6">
+                                            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                                <FireExtinguisher className="h-6 w-6" />
+                                            </div>
+                                            <div className="bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
+                                                <span className="text-xs font-bold text-slate-500">{ext.type}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Serial & Location */}
+                                        <div className="flex-grow">
+                                            <h3 className="text-xl font-black text-slate-800 mb-1 group-hover:text-blue-600 transition-colors">{ext.sl_no}</h3>
+                                            <p className="text-sm font-medium text-slate-400 mb-6">{ext.location}</p>
+                                        </div>
+
+                                        {/* QR Code Display (Upfront) */}
+                                        <div className="mb-6 flex justify-center bg-slate-50 p-4 rounded-xl border border-slate-100 group-hover:bg-white group-hover:shadow-md transition-all">
+                                            {/* Construct full URL for QR */}
+                                            {/* In a real app, this should be the full URL. Using ID relative path for now or frontend URL */}
+                                            <QRCodeGenerator value={`${window.location.origin}/extinguisher/${ext.id}`} size={120} />
+                                        </div>
+
+                                        <div className="flex items-center justify-between border-t border-slate-50 pt-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-2 h-2 rounded-full ${(ext.status === 'Operational' || ext.last_inspection_status === 'Operational') ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{ext.status || ext.last_inspection_status || 'Pending'}</span>
+                                            </div>
+                                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                                <ChevronRight className="h-4 w-4" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* 5. Reports Section */}
+                        {user?.role === 'admin' && (
+                            <div id="reports-section" className="mt-16 pt-10 border-t border-slate-200">
+                                <div className="flex justify-between items-end mb-8">
+                                    <div>
+                                        <h3 className="text-2xl font-black text-slate-800 mb-2">Compliance Reports</h3>
+                                        <p className="text-slate-500 font-medium">Generate official reports for Safety Audits & Govt. Compliance.</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* PDF Report Card */}
+                                    <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group cursor-pointer" onClick={handleDownloadPDF}>
+                                        <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center text-red-600 mb-6 group-hover:bg-red-600 group-hover:text-white transition-colors">
+                                            <FileText className="h-7 w-7" />
+                                        </div>
+                                        <h4 className="text-xl font-bold text-slate-800 mb-2">Main Safety Audit Report</h4>
+                                        <p className="text-sm text-slate-400 mb-6">Standard 2A-Format compliance report including all active assets, inspection status, and due dates.</p>
+                                        <span className="inline-flex items-center gap-2 text-red-600 font-bold text-sm uppercase tracking-wider group-hover:translate-x-2 transition-transform">
+                                            Download PDF <ChevronRight className="h-4 w-4" />
+                                        </span>
+                                    </div>
+
+                                    {/* Excel Export Card */}
+                                    <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group cursor-pointer" onClick={handleDownloadCSV}>
+                                        <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center text-green-600 mb-6 group-hover:bg-green-600 group-hover:text-white transition-colors">
+                                            <Download className="h-7 w-7" />
+                                        </div>
+                                        <h4 className="text-xl font-bold text-slate-800 mb-2">Inventory Export (Excel)</h4>
+                                        <p className="text-sm text-slate-400 mb-6">Complete raw data export of all registered machinery and assets in CSV format for analysis.</p>
+                                        <span className="inline-flex items-center gap-2 text-green-600 font-bold text-sm uppercase tracking-wider group-hover:translate-x-2 transition-transform">
+                                            Download CSV <ChevronRight className="h-4 w-4" />
+                                        </span>
+                                    </div>
+
+                                    {/* Audit Log Export Card */}
+                                    <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group cursor-pointer" onClick={() => {
+                                        const link = document.createElement('a');
+                                        link.href = `${api.defaults.baseURL}/inspections/export`;
+                                        link.setAttribute('download', 'audit_log.csv');
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        link.remove();
+                                    }}>
+                                        <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                            <Activity className="h-7 w-7" />
+                                        </div>
+                                        <h4 className="text-xl font-bold text-slate-800 mb-2">Export Activity Log</h4>
+                                        <p className="text-sm text-slate-400 mb-6">Detailed history of all inspections including User ID, Device ID, timestamp, and actions.</p>
+                                        <span className="inline-flex items-center gap-2 text-indigo-600 font-bold text-sm uppercase tracking-wider group-hover:translate-x-2 transition-transform">
+                                            Download Log <ChevronRight className="h-4 w-4" />
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+                {activeTab === 'team' && (
+                    <div className="space-y-8">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+                                <Users className="h-5 w-5 text-blue-500" /> Authorized Personnel
+                            </h3>
+                            <button
+                                onClick={() => setIsUserModalOpen(true)}
+                                className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all"
+                            >
+                                <UserPlus className="h-4 w-4" /> Add Officer
+                            </button>
+                        </div>
+
+                        <div className="bg-white rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50/50">
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Username</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Role</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {users.map(u => (
+                                        <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-8 py-5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                                                        <User className="h-4 w-4" />
+                                                    </div>
+                                                    <span className="font-bold text-slate-700">{u.username}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-5">
+                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${u.role === 'admin' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600'}`}>
+                                                    {u.role}
+                                                </span>
+                                            </td>
+                                            <td className="px-8 py-5 text-right">
+                                                <button
+                                                    onClick={() => { setSelectedUser(u); setIsResetModalOpen(true); }}
+                                                    className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                                                    title="Reset Password"
+                                                >
+                                                    <Lock className="h-4 w-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 )}
