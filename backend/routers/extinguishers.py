@@ -100,31 +100,30 @@ def get_extinguisher(
     ext_uuid = extinguisher.id
 
     
-    # 2. Determine Mode
+    # Determine Mode
     # Default to VIEW
     mode = "VIEW"
     debug_info = []
 
-    # Check 48h Lock
-    # Logic: Find latest inspection
-    # Assuming we want the absolute latest inspection for this item
-    statement = select(Inspection).where(Inspection.extinguisher_id == ext_uuid).order_by(Inspection.inspection_date.desc())
-    last_inspection = session.exec(statement).first()
+    # Get User (if any)
+    user = get_optional_user_from_token(authorization)
+    debug_info.append(f"User: {user}")
+
+    if user:
+         # Inspector is viewing. Check for 48h Lock.
+         if last_inspection_at:
+             hours_since = (datetime.utcnow() - last_inspection_at).total_seconds() / 3600
+             debug_info.append(f"Hours since last: {hours_since}")
+             if hours_since < 48:
+                 # Logic Requirement: Prevent duplicate records by same or other inspector
+                 mode = "LOCKED"
+             else:
+                 mode = "EDIT"
+         else:
+             mode = "EDIT" # No previous inspection
     
-    last_inspection_at = last_inspection.inspection_date if last_inspection else None
-    
-    if last_inspection_at:
-        hours_since = (datetime.utcnow() - last_inspection_at).total_seconds() / 3600
-        debug_info.append(f"Hours since last: {hours_since}")
-        if hours_since < 48:
-            mode = "LOCKED"
-    
-    # If not locked, check for Inspector Access
-    if mode != "LOCKED":
-        user = get_optional_user_from_token(authorization)
-        debug_info.append(f"User: {user}")
-        if user:
-            mode = "EDIT"
+    # If no user (Public), mode stays "VIEW" regardless of lock status
+    # This fulfills: "ability to scan... and showcase details... (anyone... view mode)"
     
     # Fetch Last Inspector Name
     last_inspector_name = "N/A"
