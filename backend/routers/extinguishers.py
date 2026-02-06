@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlmodel import Session, select
 from sqlalchemy.orm import selectinload
 from database import get_session
-from models import Extinguisher, User, Inspection, ExtinguisherRead
+from models import Extinguisher, User, Inspection, ExtinguisherRead, ExtinguisherCreate
 from auth import oauth2_scheme, SECRET_KEY, ALGORITHM, get_current_user
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
