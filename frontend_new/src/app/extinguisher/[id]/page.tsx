@@ -57,7 +57,9 @@ export default function ExtinguisherMasterPage() {
             })
             .catch(err => {
                 console.error("Failed to fetch extinguisher", err);
-                setError("Extinguisher details unavailable.");
+                // Extract useful error info
+                const msg = err.response?.data?.detail || err.message || "Connection Failed";
+                setError(`Unable to load details. (${msg})`);
                 setLoading(false);
             });
     }, [id]);

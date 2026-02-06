@@ -591,23 +591,27 @@ export default function AdminDashboard() {
                                         const printWindow = window.open('', '', 'width=600,height=600');
                                         if (printWindow) {
                                             printWindow.document.write(`
-                                                <html>
-                                                    <head>
-                                                        <title>Print QR - ${selectedAssetForQR.sl_no}</title>
-                                                        <style>
-                                                            body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
-                                                            h1 { font-size: 24px; margin-bottom: 5px; }
-                                                            p { font-size: 14px; color: #666; margin-bottom: 20px; }
-                                                        </style>
-                                                    </head>
-                                                    <body>
-                                                        <h1>${selectedAssetForQR.sl_no}</h1>
-                                                        <p>${selectedAssetForQR.type} - ${selectedAssetForQR.location}</p>
-                                                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${window.location.origin}/extinguisher/${selectedAssetForQR.id}" width="300" />
-                                                        <script>window.print(); window.close();</script>
-                                                    </body>
-                                                </html>
-                                            `);
+                                            <html>
+                                                <head>
+                                                    <title>Print QR - ${selectedAssetForQR.sl_no}</title>
+                                                    <style>
+                                                        body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
+                                                        h1 { font-size: 24px; margin-bottom: 5px; }
+                                                        p { font-size: 14px; color: #666; margin-bottom: 20px; }
+                                                    </style>
+                                                </head>
+                                                <body>
+                                                    <h1>${selectedAssetForQR.sl_no}</h1>
+                                                    <p>${selectedAssetForQR.type} - ${selectedAssetForQR.location}</p>
+                                                    <img 
+                                                        src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(window.location.origin + '/extinguisher/' + selectedAssetForQR.id)}" 
+                                                        width="300" 
+                                                        onload="window.print(); window.close();" 
+                                                        onerror="alert('Failed to load QR code');"
+                                                    />
+                                                </body>
+                                            </html>
+                                        `);
                                             printWindow.document.close();
                                         }
                                     }}

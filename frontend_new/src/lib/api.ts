@@ -7,8 +7,16 @@ let API_URL = process.env.NEXT_PUBLIC_API_URL;
 // Dynamic configuration for local network testing (Mobile)
 if (!API_URL) {
     if (typeof window !== 'undefined') {
-        // If running in browser, use the current hostname (e.g., 192.168.1.x)
-        API_URL = `http://${window.location.hostname}:8000`;
+        const hostname = window.location.hostname;
+        // If on Vercel or public domain, do NOT default to localhost/8000
+        if (hostname.includes('vercel.app') || hostname.includes('railway.app')) {
+            console.warn("API_URL is missing in Production! Requests will likely fail.");
+            // We can't guess the backend URL, but we can prevent it from hitting localhost
+            // API_URL = "https://your-backend.up.railway.app"; 
+        } else {
+            // Local network testing (e.g., 192.168.x.x)
+            API_URL = `http://${hostname}:8000`;
+        }
     } else {
         // Server-side fallback
         API_URL = 'http://localhost:8000';
