@@ -12,10 +12,15 @@ router = APIRouter(prefix="/inspections", tags=["inspections"])
 class InspectionCreate(BaseModel):
     extinguisher_id: str
     inspection_type: str # Quarterly, Annual
+    observation: Optional[str] = "Ok"
     remarks: Optional[str] = None
     pressure_tested_on: Optional[datetime] = None
+    date_of_discharge: Optional[datetime] = None
     refilled_on: Optional[datetime] = None
     due_for_refilling: Optional[datetime] = None
+    hydro_pressure_tested_on: Optional[datetime] = None
+    next_hydro_pressure_test_due: Optional[datetime] = None
+    next_service_due: Optional[datetime] = None
     photo_path: Optional[str] = None
     signature_path: Optional[str] = None
     image_urls: Optional[List[str]] = None # Just in case frontend sends it
@@ -173,6 +178,7 @@ def create_inspection(
         extinguisher_id=ext_uuid, # Use the UUID object
         inspector_id=current_user.id,
         inspection_type=inspection_data.inspection_type,
+        observation=inspection_data.observation,
         remarks=inspection_data.remarks,
         pressure_tested_on=inspection_data.pressure_tested_on,
         refilled_on=inspection_data.refilled_on,
