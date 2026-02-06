@@ -39,8 +39,14 @@ def create_user(
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already taken")
         
-    db_user = User.from_orm(user)
-    db_user.password_hash = get_password_hash(user.password)
+    # db_user = User.from_orm(user)
+    # db_user.password_hash = get_password_hash(user.password)
+    # Manual instantiation to satisfy required fields
+    db_user = User(
+        username=user.username,
+        role=user.role,
+        password_hash=get_password_hash(user.password)
+    )
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
