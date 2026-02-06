@@ -109,6 +109,36 @@ def fix_db():
     except Exception as e:
         return {"status": "ERROR", "detail": str(e)}
 
+@app.get("/debug/create-admin")
+def create_initial_admin():
+    """
+    Emergency endpoint to create the first Admin user.
+    Only works if no users exist in the database.
+    Default: admin / admin123
+    """
+    try:
+        from models import User
+        from auth import get_password_hash
+        
+        with Session(engine) as session:
+            # check if any user exists
+            existing = session.exec(select(User)).first()
+            if existing:
+                return {"status": "SKIPPED", "message": "Users already exist. Cannot overwrite."}
+            
+            # Create Admin
+            admin_user = User(
+                username="admin", 
+                password_hash=get_password_hash("admin123"), # Default password
+                role="admin",
+                is_active=True
+            )
+            session.add(admin_user)
+            session.commit()
+            return {"status": "SUCCESS", "message": "Admin user created. Login with: admin / admin123"}
+    except Exception as e:
+        return {"status": "ERROR", "detail": str(e)}
+
 # Mount uploads directory to /static
 os.makedirs("uploads", exist_ok=True)
 app.mount("/static", StaticFiles(directory="uploads"), name="static")
