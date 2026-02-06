@@ -112,7 +112,16 @@ def get_extinguisher(
     if user:
          # Inspector is viewing. Check for 48h Lock.
          if last_inspection_at:
-             hours_since = (datetime.utcnow() - last_inspection_at).total_seconds() / 3600
+             # Ensure both are timezone aware or both naive
+             now_utc = datetime.utcnow()
+             last_insp = last_inspection_at
+             
+             # If last_insp is timezone aware (Postgres default), make now_utc aware
+             if last_insp.tzinfo is not None:
+                 from datetime import timezone
+                 now_utc = now_utc.replace(tzinfo=timezone.utc)
+             
+             hours_since = (now_utc - last_insp).total_seconds() / 3600
              debug_info.append(f"Hours since last: {hours_since}")
              if hours_since < 48:
                  # Logic Requirement: Prevent duplicate records by same or other inspector
