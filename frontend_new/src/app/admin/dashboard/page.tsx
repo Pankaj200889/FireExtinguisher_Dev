@@ -916,6 +916,25 @@ export default function AdminDashboard() {
                                             Download Log <ChevronRight className="h-4 w-4" />
                                         </span>
                                     </div>
+
+                                    {/* Safety Audit Report (CSV) Export Card */}
+                                    <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group cursor-pointer" onClick={() => {
+                                        const link = document.createElement('a');
+                                        link.href = `${api.defaults.baseURL}/inspections/export-csv`; // Use the new endpoint
+                                        link.setAttribute('download', 'Safety_Audit_Report.csv');
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        link.remove();
+                                    }}>
+                                        <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-600 mb-6 group-hover:bg-orange-600 group-hover:text-white transition-colors">
+                                            <FileText className="h-7 w-7" />
+                                        </div>
+                                        <h4 className="text-xl font-bold text-slate-800 mb-2">Safety Audit Report (Excel)</h4>
+                                        <p className="text-sm text-slate-400 mb-6">Download the official Annex H compliance report in CSV format for Excel.</p>
+                                        <span className="inline-flex items-center gap-2 text-orange-600 font-bold text-sm uppercase tracking-wider group-hover:translate-x-2 transition-transform">
+                                            Download CSV <ChevronRight className="h-4 w-4" />
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         )}
