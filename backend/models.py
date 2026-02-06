@@ -37,6 +37,9 @@ class ExtinguisherBase(SQLModel):
     hydro_pressure_tested_on: Optional[datetime] = None
     next_hydro_pressure_test_due: Optional[datetime] = None
 
+class ExtinguisherCreate(ExtinguisherBase):
+    pass
+
 class Extinguisher(ExtinguisherBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     inspections: List["Inspection"] = Relationship(back_populates="extinguisher")

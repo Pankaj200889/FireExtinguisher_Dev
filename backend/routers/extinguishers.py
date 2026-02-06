@@ -35,21 +35,20 @@ def get_optional_user_from_token(token: Optional[str]) -> Optional[str]:
 
 @router.post("/")
 def create_extinguisher(
-    extinguisher: Extinguisher,
+    extinguisher_data: ExtinguisherCreate,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin privileges required")
     
-    # Generate ID if not provided (though model has default factory)
-    # We enforce new ID to avoid collisions if user sends one
-    # extinguisher.id = uuid.uuid4() # Let SQLModel handle it or ensure uniqueness
-    
     # Check for duplicate SL No
-    existing = session.exec(select(Extinguisher).where(Extinguisher.sl_no == extinguisher.sl_no)).first()
+    existing = session.exec(select(Extinguisher).where(Extinguisher.sl_no == extinguisher_data.sl_no)).first()
     if existing:
         raise HTTPException(status_code=400, detail="Serial Number already exists")
+    
+    # Convert Create Model to DB Model
+    extinguisher = Extinguisher.model_validate(extinguisher_data)
     
     # Generate QR Code URL
     # Assuming frontend URL structure
