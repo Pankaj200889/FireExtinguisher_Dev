@@ -20,7 +20,7 @@ def read_users(
 ):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
-    users = session.exec(select(User).where(User.is_active == True)).all()
+    users = session.exec(select(User).where(User.is_active == True).order_by(User.created_at.desc())).all()
     return users
 
 @router.post("/", response_model=UserRead)

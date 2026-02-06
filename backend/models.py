@@ -11,6 +11,7 @@ class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     password_hash: str
     is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class UserCreate(UserBase):
     password: str
@@ -44,6 +45,7 @@ class ExtinguisherCreate(ExtinguisherBase):
 class Extinguisher(ExtinguisherBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
     inspections: List["Inspection"] = Relationship(back_populates="extinguisher")
 
 class ExtinguisherRead(ExtinguisherBase):

@@ -72,6 +72,29 @@ def run_migrations():
 
         safe_add_is_active('"user"')
         safe_add_is_active("extinguisher")
+        
+        # Phase 6.11: Sortable Lists (created_at)
+        # Postgres uses NOW(), SQLite uses CURRENT_TIMESTAMP
+        # We try Postgres first
+        try:
+             conn.execute(text('ALTER TABLE "user" ADD COLUMN created_at TIMESTAMP DEFAULT NOW()'))
+             print("Added created_at to user (Postgres)")
+        except:
+             try:
+                 conn.execute(text('ALTER TABLE "user" ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'))
+                 print("Added created_at to user (SQLite)")
+             except:
+                 pass
+
+        try:
+             conn.execute(text("ALTER TABLE extinguisher ADD COLUMN created_at TIMESTAMP DEFAULT NOW()"))
+             print("Added created_at to extinguisher (Postgres)")
+        except:
+             try:
+                 conn.execute(text("ALTER TABLE extinguisher ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                 print("Added created_at to extinguisher (SQLite)")
+             except:
+                 pass
 
         conn.commit()
     print("Migrations complete.")

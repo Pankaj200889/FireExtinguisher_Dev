@@ -12,7 +12,7 @@ router = APIRouter(prefix="/extinguishers", tags=["extinguishers"])
 
 @router.get("/", response_model=List[ExtinguisherRead])
 def list_extinguishers(session: Session = Depends(get_session)):
-    extinguishers = session.exec(select(Extinguisher).where(Extinguisher.is_active == True).options(selectinload(Extinguisher.inspections))).all()
+    extinguishers = session.exec(select(Extinguisher).where(Extinguisher.is_active == True).options(selectinload(Extinguisher.inspections)).order_by(Extinguisher.created_at.desc())).all()
     return extinguishers
 
 
