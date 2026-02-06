@@ -1,17 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlmodel import Session, select
+from sqlalchemy.orm import selectinload
 from database import get_session
-from models import Extinguisher, User, Inspection
+from models import Extinguisher, User, Inspection, ExtinguisherRead
 from auth import oauth2_scheme, SECRET_KEY, ALGORITHM, get_current_user
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import List, Optional
 
 router = APIRouter(prefix="/extinguishers", tags=["extinguishers"])
 
-@router.get("/")
+@router.get("/", response_model=List[ExtinguisherRead])
 def list_extinguishers(session: Session = Depends(get_session)):
-    extinguishers = session.exec(select(Extinguisher)).all()
+    extinguishers = session.exec(select(Extinguisher).options(selectinload(Extinguisher.inspections))).all()
     return extinguishers
 
 

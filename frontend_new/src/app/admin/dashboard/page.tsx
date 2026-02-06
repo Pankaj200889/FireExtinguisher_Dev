@@ -28,6 +28,9 @@ interface Extinguisher {
     make?: string;
     year_of_manufacture?: number;
     last_inspection_date?: string;
+    inspections?: Inspection[];
+    hydro_pressure_tested_on?: string;
+    next_hydro_pressure_test_due?: string;
 }
 
 interface AppUser {
@@ -38,9 +41,20 @@ interface AppUser {
 
 
 
+interface Inspection {
+    inspection_type: string;
+    inspection_date: string;
+    pressure_tested_on?: string;
+    date_of_discharge?: string;
+    refilled_on?: string;
+    hydro_pressure_tested_on?: string;
+    next_hydro_pressure_test_due?: string;
+}
+
 interface CompanySettings {
     company_name: string;
     logo_url?: string;
+    timezone?: string;
 }
 
 export default function AdminDashboard() {
@@ -59,6 +73,8 @@ export default function AdminDashboard() {
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [users, setUsers] = useState<AppUser[]>([]);
     const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
+    const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+    const [selectedAssetForQR, setSelectedAssetForQR] = useState<Extinguisher | null>(null);
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const { register, handleSubmit, reset } = useForm();
     const { register: registerProfile, handleSubmit: handleSubmitProfile, reset: resetProfile } = useForm();
@@ -280,30 +296,70 @@ export default function AdminDashboard() {
         doc.setFont("helvetica", "normal");
         doc.text("H-1 Record of fire extinguishers installed in a premise, its inspection, maintenance, and operational history shall be maintained as per the format given below:", 14, 34);
 
+        // Helper to format dates based on Timezone
+        const fmt = (dateStr?: string) => {
+            if (!dateStr) return '-';
+            try {
+                return new Date(dateStr).toLocaleDateString('en-IN', {
+                    timeZone: companySettings.timezone || 'Asia/Kolkata',
+                    day: '2-digit', month: '2-digit', year: 'numeric'
+                });
+            } catch (e) { return '-'; }
+        };
+
         // Table
-        const tableData = extinguishers.map((ext, index) => [
-            index + 1,
-            ext.type,
-            ext.capacity || '-',
-            ext.year_of_manufacture || '-',
-            ext.make || '-',
-            ext.location,
-            '-', // Quarterly
-            '-', // Annual
-            '-', // Pressure Tested
-            '-', // Discharge
-            '-', // Refilled
-            ext.next_service_due ? new Date(ext.next_service_due).toLocaleDateString() : '-',
-            ext.last_inspection_status || '-'
-        ]);
+        const tableData = extinguishers.map((ext, index) => {
+            const inspections = ext.inspections || [];
+
+            // Helper to extract and join unique dates
+            const getDates = (filterFn: (i: Inspection) => boolean, dateField: keyof Inspection) => {
+                const dates = inspections
+                    .filter(filterFn)
+                    .map(i => i[dateField])
+                    .filter(d => d)
+                    .map(d => fmt(d as string));
+                return [...new Set(dates)].join('\n') || '-';
+            };
+
+            return [
+                index + 1,
+                ext.type,
+                ext.capacity || '-',
+                ext.year_of_manufacture || '-',
+                ext.make || '-',
+                ext.location,
+                // Monthly Dates (Not standard in H-1 but requested?) - User asked for Monthly, Quarterly, Annual
+                // However Annex H usually asks for Quarterly/Annual. User requested ALL.
+                // I will add Monthly to the "Remarks" or a separate column if space permits.
+                // Actually user asked specifically: "Monthly Inspection Dates", "Quarterly...", "Annual..."
+                // I'll add Monthly column.
+                getDates(i => i.inspection_type === 'Monthly', 'inspection_date'),
+                getDates(i => i.inspection_type === 'Quarterly', 'inspection_date'),
+                getDates(i => i.inspection_type === 'Annual', 'inspection_date'),
+
+                getDates(i => !!i.pressure_tested_on, 'pressure_tested_on'),
+                getDates(i => !!i.date_of_discharge, 'date_of_discharge'),
+                getDates(i => !!i.refilled_on, 'refilled_on'),
+
+                // Hydro Test (New)
+                // Use history OR current status? User asked for "Hydro Pressure Tested On" column.
+                // I will use the history + current status if available.
+                // Actually, let's use the explicit field from Extinguisher if generic, or inspection history.
+                // Best to use inspection history for "Dates".
+                getDates(i => !!i.hydro_pressure_tested_on, 'hydro_pressure_tested_on'),
+                getDates(i => !!i.next_hydro_pressure_test_due, 'next_hydro_pressure_test_due'),
+
+                ext.last_inspection_status || '-'
+            ];
+        });
 
         autoTable(doc, {
             startY: 40,
             head: [[
-                'Sl No.', 'Type', 'Capacity', 'Year of\nManufacture', 'Make', 'Location',
-                'Quarterly\nInspection\nDates', 'Annual\nInspection\nDates',
-                'Pressure\nTested on', 'Date of\nDischarge', 'Refilled\non',
-                'Due for\nRefilling', 'Remarks'
+                'Sl', 'Type', 'Cap', 'Year', 'Make', 'Location',
+                'Monthly', 'Quarterly', 'Annual',
+                'Pressure\nTest', 'Discharge', 'Refilled',
+                'Hydro\nTest', 'Next\nHydro', 'Status'
             ]],
             body: tableData,
             theme: 'grid',
@@ -314,23 +370,25 @@ export default function AdminDashboard() {
                 lineColor: [50, 50, 50],
                 lineWidth: 0.1,
                 valign: 'middle',
-                halign: 'center'
+                halign: 'center',
+                fontSize: 8
             },
             styles: {
                 lineColor: [50, 50, 50],
                 lineWidth: 0.1,
-                fontSize: 9,
-                valign: 'middle',
-                cellPadding: 2
+                fontSize: 7, // Smaller font for many columns
+                valign: 'top',
+                cellPadding: 1,
+                overflow: 'linebreak'
             },
             columnStyles: {
-                0: { cellWidth: 15 },
-                1: { cellWidth: 20 },
-                2: { cellWidth: 20 },
-                3: { cellWidth: 25 },
-                4: { cellWidth: 20 },
-                5: { cellWidth: 30 },
-                // ... auto for rest
+                0: { cellWidth: 8 },
+                1: { cellWidth: 12 },
+                2: { cellWidth: 10 },
+                3: { cellWidth: 10 },
+                4: { cellWidth: 15 },
+                5: { cellWidth: 20 },
+                // Dates columns auto-stacked
             }
         });
 
@@ -503,6 +561,65 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
+                {/* QR Code Print Modal */}
+                {isQRModalOpen && selectedAssetForQR && (
+                    <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center p-4 z-50 backdrop-blur-md">
+                        <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl text-center relative animate-in fade-in zoom-in duration-200">
+                            <button
+                                onClick={() => setIsQRModalOpen(false)}
+                                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
+                            >
+                                <Plus className="rotate-45 h-5 w-5" />
+                            </button>
+
+                            <h3 className="text-2xl font-black text-slate-800 mb-1">{selectedAssetForQR.sl_no}</h3>
+                            <p className="text-sm font-bold text-slate-400 mb-8 uppercase tracking-wider">{selectedAssetForQR.type} • {selectedAssetForQR.location}</p>
+
+                            <div className="bg-white p-4 rounded-3xl border-2 border-slate-100 shadow-inner inline-block mb-8">
+                                <QRCodeGenerator value={`${window.location.origin}/extinguisher/${selectedAssetForQR.id}`} size={200} />
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setIsQRModalOpen(false)}
+                                    className="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-colors"
+                                >
+                                    Close
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const printWindow = window.open('', '', 'width=600,height=600');
+                                        if (printWindow) {
+                                            printWindow.document.write(`
+                                                <html>
+                                                    <head>
+                                                        <title>Print QR - ${selectedAssetForQR.sl_no}</title>
+                                                        <style>
+                                                            body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
+                                                            h1 { font-size: 24px; margin-bottom: 5px; }
+                                                            p { font-size: 14px; color: #666; margin-bottom: 20px; }
+                                                        </style>
+                                                    </head>
+                                                    <body>
+                                                        <h1>${selectedAssetForQR.sl_no}</h1>
+                                                        <p>${selectedAssetForQR.type} - ${selectedAssetForQR.location}</p>
+                                                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${window.location.origin}/extinguisher/${selectedAssetForQR.id}" width="300" />
+                                                        <script>window.print(); window.close();</script>
+                                                    </body>
+                                                </html>
+                                            `);
+                                            printWindow.document.close();
+                                        }
+                                    }}
+                                    className="flex-1 py-3 rounded-xl font-bold text-white bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200 flex items-center justify-center gap-2 transition-all"
+                                >
+                                    <span className="text-lg">🖨️</span> Print QR
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {activeTab === 'dashboard' && (
                     <div className="space-y-10">
                         {/* 3. Stats Grid */}
@@ -631,10 +748,24 @@ export default function AdminDashboard() {
                                         </div>
 
                                         {/* QR Code Display (Upfront) */}
-                                        <div className="mb-6 flex justify-center bg-slate-50 p-4 rounded-xl border border-slate-100 group-hover:bg-white group-hover:shadow-md transition-all">
-                                            {/* Construct full URL for QR */}
-                                            {/* In a real app, this should be the full URL. Using ID relative path for now or frontend URL */}
-                                            <QRCodeGenerator value={`${window.location.origin}/extinguisher/${ext.id}`} size={120} />
+                                        {/* QR Code Action */}
+                                        <div className="mb-6 flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-100 group-hover:bg-white group-hover:shadow-md transition-all">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                                                    <QrCode className="h-5 w-5 text-slate-700" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Asset QR</p>
+                                                    <p className="text-xs font-bold text-blue-600">Scan to View</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setSelectedAssetForQR(ext); setIsQRModalOpen(true); }}
+                                                className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                                title="View & Print QR"
+                                            >
+                                                <QrCode className="h-5 w-5" />
+                                            </button>
                                         </div>
 
                                         <div className="flex items-center justify-between border-t border-slate-50 pt-4">

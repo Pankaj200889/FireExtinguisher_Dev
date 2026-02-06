@@ -35,8 +35,13 @@ class Extinguisher(SQLModel, table=True):
     last_inspection_date: Optional[datetime] = None
     next_service_due: Optional[datetime] = None
     status: str = Field(default="Pending") # Operational, Non-Operational, Pending
+    hydro_pressure_tested_on: Optional[datetime] = None
+    next_hydro_pressure_test_due: Optional[datetime] = None
     
     inspections: List["Inspection"] = Relationship(back_populates="extinguisher")
+
+class ExtinguisherRead(Extinguisher):
+    inspections: List["Inspection"] = []
 
 class Inspection(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -53,6 +58,8 @@ class Inspection(SQLModel, table=True):
     date_of_discharge: Optional[datetime] = None
     refilled_on: Optional[datetime] = None
     due_for_refilling: Optional[datetime] = None
+    hydro_pressure_tested_on: Optional[datetime] = None
+    next_hydro_pressure_test_due: Optional[datetime] = None
     
     # Evidence
     photo_path: Optional[str] = None # Primary photo
@@ -67,4 +74,5 @@ class CompanySettings(SQLModel, table=True):
     id: int = Field(default=1, primary_key=True)
     company_name: str = Field(default="Siddhi Industrial Solutions")
     logo_url: Optional[str] = None
+    timezone: str = Field(default="Asia/Kolkata")
     updated_at: datetime = Field(default_factory=datetime.utcnow)

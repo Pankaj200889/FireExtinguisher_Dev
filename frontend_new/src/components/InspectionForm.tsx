@@ -120,6 +120,8 @@ export default function InspectionForm({ extinguisherId, extinguisherData, onSuc
                 date_of_discharge: data.date_of_discharge ? new Date(data.date_of_discharge).toISOString() : null,
                 refilled_on: data.refilled_on ? new Date(data.refilled_on).toISOString() : null,
                 due_for_refilling: data.due_for_refilling ? new Date(data.due_for_refilling).toISOString() : null,
+                hydro_pressure_tested_on: data.hydro_pressure_tested_on ? new Date(data.hydro_pressure_tested_on).toISOString() : null,
+                next_hydro_pressure_test_due: data.next_hydro_pressure_test_due ? new Date(data.next_hydro_pressure_test_due).toISOString() : null,
 
                 signature_path: signatureUrl,
                 photo_path: imageUrls.length > 0 ? imageUrls[0] : null,
@@ -139,17 +141,7 @@ export default function InspectionForm({ extinguisherId, extinguisherData, onSuc
         }
     };
 
-    // Watch 'refilled_on' to calculate 'Due for Refilling'
-    const refilledOn = watch("refilled_on");
-
-    useEffect(() => {
-        if (refilledOn) {
-            const refilledDate = new Date(refilledOn);
-            const dueDate = new Date(refilledDate);
-            dueDate.setFullYear(dueDate.getFullYear() + 1);
-            setValue("due_for_refilling", dueDate.toISOString().split('T')[0]);
-        }
-    }, [refilledOn, setValue]);
+    // Manual Refill Date - Removed Auto Calculation per User Request
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-10 pb-20">
@@ -293,7 +285,19 @@ export default function InspectionForm({ extinguisherId, extinguisherData, onSuc
                     </div>
                     <div className="group">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 block group-focus-within:text-blue-600 transition-colors">Due for Refilling</label>
-                        <input {...register('due_for_refilling')} readOnly type="date" className="w-full bg-slate-100 border border-transparent px-4 py-3 rounded-xl font-bold text-slate-500 outline-none cursor-not-allowed" />
+                        <input {...register('due_for_refilling')} type="date" className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
+                    </div>
+                </div>
+
+                {/* Hydro Pressure Test Section (New) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-8 pt-4 border-t border-slate-50">
+                    <div className="group">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 block group-focus-within:text-blue-600 transition-colors">Hydro Pressure Tested On</label>
+                        <input {...register('hydro_pressure_tested_on')} type="date" className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
+                    </div>
+                    <div className="group">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 block group-focus-within:text-blue-600 transition-colors">Next Due Hydro Test</label>
+                        <input {...register('next_hydro_pressure_test_due')} type="date" className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
                     </div>
                 </div>
 
