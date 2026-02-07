@@ -221,8 +221,15 @@ app.mount("/static", StaticFiles(directory="uploads"), name="static")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False, # Must be False if origins is "*"
+    allow_origins=[
+        "http://localhost:3000",
+        "https://siddhiss.com",
+        "https://www.siddhiss.com",
+        "https://fire.siddhiss.com",
+        "https://app.siddhiss.com",
+        "https://fireextinguisherdev-production.up.railway.app"
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
