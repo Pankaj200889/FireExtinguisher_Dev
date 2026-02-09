@@ -221,8 +221,13 @@ app.mount("/static", StaticFiles(directory="uploads"), name="static")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False, # Must be False if origins is "*"
+    allow_origins=[
+        "http://localhost:3000",
+        "https://fire-safety-dev.vercel.app",
+        "https://fire.siddhiss.com",
+        "https://fire-safety-h73i0y5bh-pankaj-vishwakarmas-projects-816b85f5.vercel.app"
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

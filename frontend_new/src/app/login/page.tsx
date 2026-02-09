@@ -23,9 +23,7 @@ function LoginForm() {
             formData.append('username', data.username);
             formData.append('password', data.password);
 
-            const response = await api.post('/token', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' } // OAuth2 expects form data
-            });
+            const response = await api.post('/token', formData);
 
             login(response.data.access_token, redirectPath);
         } catch (err: any) {
