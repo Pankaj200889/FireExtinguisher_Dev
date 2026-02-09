@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
-import { Plus, QrCode, LogOut, Camera, Flame, FireExtinguisher, ChevronRight, User, FileText, Download, Activity, Users, UserPlus, Shield, Lock, Trash2 } from 'lucide-react';
+import { Plus, QrCode, LogOut, Camera, Flame, FireExtinguisher, ChevronRight, User, FileText, Download, Activity, Users, UserPlus, Shield, Lock, Trash2, Link as LinkIcon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useForm } from 'react-hook-form';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -1017,7 +1017,7 @@ export default function AdminDashboard() {
                                                     className="p-2 text-slate-400 hover:text-green-600 transition-colors"
                                                     title="Generate Reset Link"
                                                 >
-                                                    <Lock className="h-4 w-4" />
+                                                    <LinkIcon className="h-4 w-4" />
                                                 </button>
                                             </td>
                                         </tr>
