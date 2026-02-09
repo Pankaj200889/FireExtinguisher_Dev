@@ -17,6 +17,9 @@ dist/
 # System
 .DS_Store
 Thumbs.db
+*.zip
+*.db
+*.sqlite3
 
 # IDEs
 .vscode/
