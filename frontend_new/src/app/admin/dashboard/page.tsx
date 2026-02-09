@@ -85,6 +85,8 @@ export default function AdminDashboard() {
     const { register: registerProfile, handleSubmit: handleSubmitProfile, reset: resetProfile } = useForm();
     const { register: registerUser, handleSubmit: handleSubmitUser, reset: resetUser } = useForm();
     const { register: registerReset, handleSubmit: handleSubmitReset, reset: resetReset } = useForm();
+    const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+    const [generatedLink, setGeneratedLink] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
     // ...
@@ -282,6 +284,20 @@ export default function AdminDashboard() {
             resetReset();
         } catch (e: any) {
             alert(e.response?.data?.detail || "Failed to reset password");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleGenerateLink = async (userId: string) => {
+        setSubmitting(true);
+        try {
+            const response = await api.post('/auth/password-reset-link', { user_id: userId });
+            const link = `${window.location.origin}/reset-password?token=${response.data.link_token}`;
+            setGeneratedLink(link);
+            setIsLinkModalOpen(true);
+        } catch (e: any) {
+            alert(e.response?.data?.detail || "Failed to generate link");
         } finally {
             setSubmitting(false);
         }
@@ -996,6 +1012,13 @@ export default function AdminDashboard() {
                                                         <Trash2 className="h-4 w-4" />
                                                     </button>
                                                 )}
+                                                <button
+                                                    onClick={() => handleGenerateLink(u.id)}
+                                                    className="p-2 text-slate-400 hover:text-green-600 transition-colors"
+                                                    title="Generate Reset Link"
+                                                >
+                                                    <Lock className="h-4 w-4" />
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
@@ -1126,6 +1149,41 @@ export default function AdminDashboard() {
                                     </button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Generated Link Modal */}
+                {isLinkModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-md">
+                        <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl text-center">
+                            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <Lock className="h-8 w-8 text-green-600" />
+                            </div>
+                            <h3 className="text-2xl font-black text-slate-800 mb-2">Secure Reset Link</h3>
+                            <p className="text-slate-500 font-medium mb-6">Share this one-time link with the user. It expires in 1 hour.</p>
+
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 break-all mb-6 font-mono text-sm text-slate-600">
+                                {generatedLink}
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(generatedLink);
+                                        alert("Copied to clipboard!");
+                                    }}
+                                    className="flex-1 py-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all"
+                                >
+                                    Copy Link
+                                </button>
+                                <button
+                                    onClick={() => setIsLinkModalOpen(false)}
+                                    className="flex-1 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-colors"
+                                >
+                                    Close
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

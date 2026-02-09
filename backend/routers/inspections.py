@@ -304,6 +304,166 @@ def create_inspection(
         
     session.add(extinguisher)
     session.commit()
+    session.add(extinguisher)
+    session.commit()
     session.refresh(new_inspection)
     
     return new_inspection
+
+@router.get("/{id}")
+def get_inspection(
+    id: str,
+    session: Session = Depends(get_session)
+):
+    try:
+        from uuid import UUID
+        insp_uuid = UUID(id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid Inspection ID")
+        
+    inspection = session.get(Inspection, insp_uuid)
+    if not inspection:
+         raise HTTPException(status_code=404, detail="Inspection not found")
+         
+    return inspection
+
+@router.get("/{id}/pdf")
+def generate_inspection_pdf(
+    id: str,
+    session: Session = Depends(get_session)
+):
+    try:
+        from uuid import UUID
+        insp_uuid = UUID(id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid Inspection ID")
+        
+    inspection = session.get(Inspection, insp_uuid)
+    if not inspection:
+         raise HTTPException(status_code=404, detail="Inspection not found")
+    
+    # Load relations
+    extinguisher = session.get(Extinguisher, inspection.extinguisher_id)
+    inspector = session.get(User, inspection.inspector_id) if inspection.inspector_id else None
+    
+    # PDF Generation
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as ReportLabImage
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from io import BytesIO
+    import requests
+    from reportlab.lib.utils import ImageReader
+    
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    story = []
+    styles = getSampleStyleSheet()
+    
+    # Title
+    story.append(Paragraph("Fire Extinguisher Inspection Report", styles['Title']))
+    story.append(Spacer(1, 12))
+    
+    # Meta Info
+    meta_data = [
+        ["Inspection ID", str(inspection.id)],
+        ["Date", inspection.inspection_date.strftime("%d-%b-%Y %H:%M")],
+        ["Inspector", inspector.username if inspector else "Unknown"],
+        ["Type", inspection.inspection_type],
+        ["Status", inspection.observation],
+    ]
+    meta_table = Table(meta_data, colWidths=[150, 300])
+    meta_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+        ('GRID', (0,0), (-1,-1), 1, colors.black),
+        ('FONTNAME', (0,0), (-1,-1), 'Helvetica-Bold'),
+    ]))
+    story.append(meta_table)
+    story.append(Spacer(1, 12))
+    
+    # Extinguisher Details
+    story.append(Paragraph("Extinguisher Details", styles['Heading2']))
+    if extinguisher:
+        ext_data = [
+            ["Serial No", extinguisher.sl_no],
+            ["Type", extinguisher.type],
+            ["Capacity", extinguisher.capacity],
+            ["Location", extinguisher.location],
+            ["Make", extinguisher.make or "-"],
+            ["Mfg Year", str(extinguisher.year_of_manufacture) or "-"],
+        ]
+        ext_table = Table(ext_data, colWidths=[150, 300])
+        ext_table.setStyle(TableStyle([
+            ('GRID', (0,0), (-1,-1), 1, colors.black),
+        ]))
+        story.append(ext_table)
+    else:
+        story.append(Paragraph("Extinguisher details not found (deleted?)", styles['Normal']))
+        
+    story.append(Spacer(1, 12))
+    
+    # Inspection Checklist
+    story.append(Paragraph("Checklist & Observations", styles['Heading2']))
+    
+    obs_data = [
+         ["Observation", inspection.observation],
+         ["Remarks", inspection.remarks or "-"],
+         ["Pressure Tested On", inspection.pressure_tested_on.strftime("%d-%b-%Y") if inspection.pressure_tested_on else "-"],
+         ["Hydro Test Due", inspection.next_hydro_pressure_test_due.strftime("%d-%b-%Y") if inspection.next_hydro_pressure_test_due else "-"],
+         ["Refilled On", inspection.refilled_on.strftime("%d-%b-%Y") if inspection.refilled_on else "-"],
+    ]
+    
+    obs_table = Table(obs_data, colWidths=[150, 300])
+    obs_table.setStyle(TableStyle([
+        ('GRID', (0,0), (-1,-1), 1, colors.black),
+    ]))
+    story.append(obs_table)
+    story.append(Spacer(1, 12))
+    
+    # Images
+    story.append(Paragraph("Inspection Photo", styles['Heading2']))
+    
+    def fetch_image(url):
+        try:
+            res = requests.get(url, stream=True)
+            if res.status_code == 200:
+                img = BytesIO(res.content)
+                return ReportLabImage(img, width=300, height=300, kind='proportional') # Maintain aspect ratio
+        except Exception as e:
+            print(f"Error fetching image: {e}")
+            return None
+            
+    if inspection.photo_path:
+        # Check if it's a URL (Cloudinary)
+        if inspection.photo_path.startswith("http"):
+             img_flowable = fetch_image(inspection.photo_path)
+             if img_flowable:
+                 story.append(img_flowable)
+             else:
+                 story.append(Paragraph("Error loading image from URL.", styles['Normal']))
+        else:
+             story.append(Paragraph(f"Image stored locally: {inspection.photo_path} (Cannot embed in this environment)", styles['Normal']))
+    else:
+        story.append(Paragraph("No photo available.", styles['Normal']))
+
+    story.append(Spacer(1, 12))
+    
+    # Signature
+    if inspection.signature_path:
+        story.append(Paragraph("Signature", styles['Heading2']))
+        if inspection.signature_path.startswith("http"):
+             sig_flowable = fetch_image(inspection.signature_path)
+             if sig_flowable:
+                 story.append(sig_flowable)
+    
+    doc.build(story)
+    buffer.seek(0)
+    
+    from fastapi.responses import StreamingResponse
+    filename = f"Inspection_{inspection.id}.pdf"
+    
+    return StreamingResponse(
+        buffer, 
+        media_type="application/pdf", 
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

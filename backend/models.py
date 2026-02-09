@@ -23,6 +23,14 @@ class UserUpdate(SQLModel):
     password: Optional[str] = None
     role: Optional[str] = None
 
+class PasswordResetToken(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    token: str = Field(index=True, unique=True)
+    expires_at: datetime
+    is_used: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
 class ExtinguisherBase(SQLModel):
     sl_no: str = Field(unique=True, index=True)
     type: str  # CO2, ABC, Water

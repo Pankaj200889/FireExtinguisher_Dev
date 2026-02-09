@@ -26,6 +26,13 @@ interface Extinguisher {
     mode: "VIEW" | "EDIT" | "LOCKED";
     lastInspectionAt?: string;
     debug_info?: string;
+    recent_inspections?: {
+        id: string;
+        date: string;
+        type: string;
+        status: string;
+        inspector: string;
+    }[];
 }
 
 import { useAuth } from '@/context/AuthContext';
@@ -243,6 +250,33 @@ export default function ExtinguisherMasterPage() {
                 </div>
                 {/* No Login Footer for Public View as per request */}
             </div>
+
+            {/* Admin: Inspection History */}
+            {user?.role === 'admin' && data.recent_inspections && data.recent_inspections.length > 0 && (
+                <div className="w-full max-w-sm mt-8">
+                    <h3 className="text-lg font-bold text-slate-800 mb-4 px-2">Inspection History</h3>
+                    <div className="space-y-3">
+                        {data.recent_inspections.map((insp) => (
+                            <div
+                                key={insp.id}
+                                onClick={() => router.push(`/admin/inspections/${insp.id}`)}
+                                className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between cursor-pointer hover:shadow-md transition-all group"
+                            >
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className={`w-2 h-2 rounded-full ${insp.status === 'Operational' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                        <p className="text-sm font-bold text-slate-800">{new Date(insp.date).toLocaleDateString()}</p>
+                                    </div>
+                                    <p className="text-xs text-slate-500 font-medium">{insp.type} • {insp.inspector}</p>
+                                </div>
+                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                    <ArrowRight className="h-4 w-4" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             <p className="mt-8 text-xs text-white/50 bg-black/20 px-3 py-1 rounded-full backdrop-blur-sm">IS 2190:2024 Compliant System</p>
         </div>

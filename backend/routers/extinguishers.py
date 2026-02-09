@@ -136,11 +136,13 @@ def get_extinguisher(
         debug_info.append(f"Auth Parse Error: {e}")
 
     # 3. Fetch History (Semi-critical - fails gracefully)
+    recent_inspections = []
     try:
         statement = select(Inspection).where(Inspection.extinguisher_id == ext_uuid).order_by(Inspection.inspection_date.desc())
-        last_inspection = session.exec(statement).first()
+        results = session.exec(statement).all()
         
-        if last_inspection:
+        if results:
+            last_inspection = results[0]
             last_inspection_at = last_inspection.inspection_date
             
             # Update Next Due Date logic
@@ -155,6 +157,17 @@ def get_extinguisher(
                         last_inspector_name = inspector_user.username
                  except:
                     pass
+            
+            # Populate recent inspections for Admin View
+            for insp in results[:10]: # Limit to 10
+                recent_inspections.append({
+                    "id": str(insp.id),
+                    "date": insp.inspection_date,
+                    "type": insp.inspection_type,
+                    "status": insp.status,
+                    "inspector": "System" # Placeholder, could fetch names if needed heavily
+                })
+
     except Exception as e:
         print(f"Inspection History Failed: {e}")
         debug_info.append(f"History Error: {str(e)}")
@@ -190,6 +203,7 @@ def get_extinguisher(
         "last_inspector_name": last_inspector_name,
         "last_inspection_status": extinguisher.status,
         "next_service_due": next_due_date,
+        "recent_inspections": recent_inspections,
         "debug_info": debug_info
     }
 
