@@ -434,15 +434,30 @@ def generate_inspection_pdf(
             return None
             
     if inspection.photo_path:
+        print(f"DEBUG: Processing PDF Image Path: {inspection.photo_path}")
         # Check if it's a URL (Cloudinary)
         if inspection.photo_path.startswith("http"):
              img_flowable = fetch_image(inspection.photo_path)
              if img_flowable:
                  story.append(img_flowable)
              else:
-                 story.append(Paragraph("Error loading image from URL.", styles['Normal']))
+                 story.append(Paragraph(f"Error loading image from URL: {inspection.photo_path}", styles['Normal']))
         else:
-             story.append(Paragraph(f"Image stored locally: {inspection.photo_path} (Cannot embed in this environment)", styles['Normal']))
+             # Try to treat as local path or fallback
+             try:
+                 # Check if file exists locally (e.g. uploads/filename)
+                 # This path might be relative to CWD
+                 import os
+                 if os.path.exists(inspection.photo_path):
+                     img = ReportLabImage(inspection.photo_path, width=300, height=300, kind='proportional')
+                     story.append(img)
+                 elif os.path.exists(f"uploads/{inspection.photo_path}"):
+                     img = ReportLabImage(f"uploads/{inspection.photo_path}", width=300, height=300, kind='proportional')
+                     story.append(img)
+                 else:
+                     story.append(Paragraph(f"Image not found locally: {inspection.photo_path}", styles['Normal']))
+             except Exception as e:
+                 story.append(Paragraph(f"Error loading local image: {str(e)}", styles['Normal']))
     else:
         story.append(Paragraph("No photo available.", styles['Normal']))
 

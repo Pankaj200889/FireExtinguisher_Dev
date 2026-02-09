@@ -131,12 +131,39 @@ export default function ExtinguisherMasterPage() {
                     </button>
 
                     {user?.role === 'admin' && (
-                        <button
-                            onClick={() => setData(prev => prev ? { ...prev, mode: 'EDIT' } : null)}
-                            className="w-full py-3 font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors text-sm uppercase tracking-wide"
-                        >
-                            Admin Override: Edit / Re-Submit
-                        </button>
+                        <>
+                            <button
+                                onClick={() => setData(prev => prev ? { ...prev, mode: 'EDIT' } : null)}
+                                className="w-full py-3 font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors text-sm uppercase tracking-wide mb-6"
+                            >
+                                Admin Override: Edit / Re-Submit
+                            </button>
+
+                            {/* Admin History in Locked View */}
+                            {data.recent_inspections && data.recent_inspections.length > 0 && (
+                                <div className="text-left w-full mt-6 border-t border-gray-200 pt-6">
+                                    <h3 className="text-sm font-bold text-gray-800 mb-3 px-1">Recent Inspections</h3>
+                                    <div className="space-y-2">
+                                        {data.recent_inspections.map((insp) => (
+                                            <div
+                                                key={insp.id}
+                                                onClick={() => router.push(`/admin/inspections/${insp.id}`)}
+                                                className="bg-white p-3 rounded-lg border border-gray-200 flex items-center justify-between cursor-pointer hover:border-indigo-300 transition-all group"
+                                            >
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-0.5">
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${insp.status === 'Operational' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                                        <p className="text-xs font-bold text-gray-700">{new Date(insp.date).toLocaleDateString()}</p>
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-500 font-medium">{insp.type} • {insp.inspector}</p>
+                                                </div>
+                                                <ArrowRight className="h-3 w-3 text-gray-400 group-hover:text-indigo-600" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
