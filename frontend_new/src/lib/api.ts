@@ -10,9 +10,10 @@ if (!API_URL) {
         const hostname = window.location.hostname;
         // If on Vercel or public domain, do NOT default to localhost/8000
         if (hostname.includes('vercel.app') || hostname.includes('railway.app')) {
-            console.log("Using Fallback Production URL");
-            // Fallback to the known backend URL if ENV is missing
-            API_URL = "https://fireextinguisherdev-production.up.railway.app";
+            console.log("Using Fallback DEV URL");
+            // Fallback to the known DEV backend URL if ENV is missing
+            API_URL = "https://fireextinguisherdev-production-8683.up.railway.app";
+            console.log("API URL set to:", API_URL);
         } else {
             // Local network testing (e.g., 192.168.x.x)
             API_URL = `http://${hostname}:8000`;
