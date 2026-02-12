@@ -2,7 +2,7 @@
     "rewrites": [
         {
             "source": "/api/(.*)",
-            "destination": "https://ignisguard-backend-production.up.railway.app/api/$1"
+            "destination": "https://fireextinguisherdev-production.up.railway.app/api/$1"
         },
         {
             "source": "/(.*)",
