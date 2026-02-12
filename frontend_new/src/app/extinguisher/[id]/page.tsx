@@ -228,7 +228,7 @@ export default function ExtinguisherMasterPage() {
                 <div className="bg-white/20 px-6 py-4 border-b border-white/20 flex justify-between items-center">
                     <div>
                         <h2 className="text-lg font-bold text-gray-800">{data.type} Extinguisher</h2>
-                        <p className="text-xs text-gray-600 font-mono mt-0.5">SN: {data.sl_no}</p>
+                        <p className="text-xs text-gray-600 font-mono mt-0.5">Asset Number: {data.sl_no}</p>
                     </div>
                 </div>
 

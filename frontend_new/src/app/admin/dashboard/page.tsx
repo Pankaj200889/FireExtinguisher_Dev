@@ -540,7 +540,7 @@ export default function AdminDashboard() {
                     {user?.role === 'admin' && activeTab === 'dashboard' && (
                         <>
                             <button onClick={scrollToRegister} className="px-5 py-2 rounded-full text-slate-500 font-semibold text-sm hover:bg-white hover:text-slate-700 transition-all whitespace-nowrap flex-shrink-0">Register</button>
-                            <button onClick={scrollToReports} className="px-5 py-2 rounded-full text-slate-500 font-semibold text-sm hover:bg-white hover:text-slate-700 transition-all whitespace-nowrap flex-shrink-0">Compliance</button>
+                            <button onClick={() => router.push('/admin/compliance')} className="px-5 py-2 rounded-full text-slate-500 font-semibold text-sm hover:bg-white hover:text-slate-700 transition-all whitespace-nowrap flex-shrink-0">Compliance</button>
                         </>
                     )}
                     {user?.role === 'admin' && (

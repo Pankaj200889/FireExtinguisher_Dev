@@ -165,7 +165,7 @@ export default function InspectionForm({ extinguisherId, extinguisherData, onSuc
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <div className="p-3 rounded-2xl border border-slate-100 bg-slate-50/50">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Serial No</span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Asset Number</span>
                         <span className="text-lg md:text-xl font-black text-slate-800 break-all">{extinguisherData?.sl_no || 'N/A'}</span>
                     </div>
                     <div className="p-3 rounded-2xl border border-slate-100 bg-slate-50/50">
