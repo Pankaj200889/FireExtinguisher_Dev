@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fffafa;
+  /* Very slight red tint white */
+  --foreground: #1e293b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* White Glassmorphism Background (Warm Tones) */
+/* Siddhi Industrial: Blue/White Modern Theme */
+body {
+  background-color: #F4F7FE;
+  /* Light Blue-Grey Background */
+  color: #1e293b;
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+/* Modern White Card Utilities */
+@layer utilities {
+  .glass {
+    @apply bg-white/80 backdrop-blur-md border border-slate-200 shadow-xl;
+  }
+
+  /* Standard White Card (Replaces old Glass Card) */
+  .glass-card {
+    @apply bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 relative overflow-hidden;
+  }
+
+  /* Decorative Shine removed for cleaner flat look, or kept subtle */
+  .glass-card::after {
+    display: none;
+  }
+
+  .glass-input {
+    @apply bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent rounded-xl transition-all outline-none font-medium;
+  }
+
+  .glass-btn {
+    @apply bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 border-0 rounded-xl transition-all active:scale-95 font-bold tracking-wide;
+  }
+}
+
+/* Floating Blob Animations (Cool Tones) */
+.blob {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: -1;
+  opacity: 0.5;
+  animation: float 10s infinite alternate;
+}
+
+.blob-1 {
+  top: -10%;
+  left: -10%;
+  width: 500px;
+  height: 500px;
+  background: #bfdbfe;
+  /* Blue-200 */
+}
+
+.blob-2 {
+  bottom: -10%;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  background: #c7d2fe;
+  /* Indigo-200 */
+  animation-duration: 12s;
+  animation-direction: alternate-reverse;
+}
+
+.blob-3 {
+  top: 40%;
+  left: 40%;
+  width: 400px;
+  height: 400px;
+  background: #e9d5ff;
+  /* Purple-200 */
+  animation: pulse 8s infinite;
+}
+
+@keyframes float {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+
+  100% {
+    transform: translate(30px, 50px) rotate(10deg);
+  }
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.4;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 0.6;
+  }
+}
+
+/* Custom Animations for Landing Page */
+.animate-fade-in {
+  animation: fadeIn 1s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.8s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
