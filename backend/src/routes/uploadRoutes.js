@@ -12,14 +12,8 @@ router.post('/', upload.single('image'), (req, res) => {
             return res.status(400).json({ message: 'Please upload a file' });
         }
 
-        // Return the URL to access the file
-        // Assumes 'uploads' is served statically from root
-        // const protocol = req.protocol;
-        // const host = req.get('host');
-        // const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
-
-        // Return relative path is often safer for proxies, or full URL if needed
-        const fileUrl = `/uploads/${req.file.filename}`;
+        // Return the Cloudinary URL
+        const fileUrl = req.file.path;
 
         res.json({
             message: 'File uploaded successfully',
