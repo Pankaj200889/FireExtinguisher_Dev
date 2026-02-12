@@ -1,83 +1,67 @@
 "use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // For App Router
-import { ShieldCheck, QrCode, Search, ArrowRight, Flame } from 'lucide-react'; // Added Flame icon
+import React from 'react';
+import { useRouter } from 'next/navigation';
+import { ShieldCheck, Flame, QrCode } from 'lucide-react';
 
 export default function Home() {
-  const [manualId, setManualId] = useState('');
   const router = useRouter();
 
-  const handleManualScan = () => {
-    if (manualId.trim()) {
-      // Support full URL or just ID
-      const id = manualId.trim().split('/').pop();
-      router.push(`/extinguisher/${id}`);
-    }
-  };
-
   return (
-    <div className="min-h-screen flex flex-col justify-between text-slate-800 bg-[#F4F7FE]">
-      {/* Hero Section */}
-      <main className="flex-grow flex flex-col items-center justify-center p-6 text-center">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-rose-950 flex flex-col items-center justify-center text-white relative overflow-hidden font-sans">
+      {/* Background Decorative Elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-rose-600/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+      </div>
 
-        <div className="mb-12 animate-float">
-          <div className="inline-flex p-8 bg-white rounded-[2rem] mb-8 shadow-xl shadow-blue-100 border border-slate-100">
-            <Flame className="h-24 w-24 text-blue-600 drop-shadow-sm fill-blue-50" />
+      <div className="z-10 text-center space-y-8 px-4 animate-slide-up">
+        {/* Logo/Icon Area */}
+        <div style={{ marginBottom: '4rem', paddingTop: '2rem' }} className="flex justify-center">
+          <div className="bg-white/10 p-6 rounded-2xl backdrop-blur-xl border border-white/10 shadow-2xl shadow-rose-900/20">
+            <ShieldCheck className="w-20 h-20 text-rose-500" />
           </div>
-          <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-indigo-600 to-blue-600 mb-4 tracking-tighter drop-shadow-sm">
-            Fire Safety
+        </div>
+
+        {/* Main Text */}
+        <div className="flex flex-col items-center gap-6">
+          <h1 className="text-6xl md:text-8xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-200 to-gray-400 pb-4 leading-tight drop-shadow-2xl">
+            IgnisGuard
           </h1>
-          <p className="text-xl text-slate-500 font-medium max-w-2xl mx-auto leading-relaxed tracking-wide">
-            Next-Gen Extinguisher Management System
+
+          <p className="text-xl md:text-2xl text-gray-300 font-light tracking-wide max-w-2xl mx-auto leading-relaxed mt-4">
+            Safety at your fingertips, Compliance in your pocket.
           </p>
+
+          <div className="inline-block px-6 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-gray-400 backdrop-blur-sm mt-4 font-mono">
+            v2.3.0 (Cloud)
+          </div>
         </div>
 
-        {/* Cards Container */}
-        <div className="w-full max-w-md perspective-container">
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-12">
+          <button
+            onClick={() => router.push('/login')}
+            className="px-10 py-4 bg-rose-600 hover:bg-rose-500 text-white text-lg font-bold rounded-xl shadow-lg shadow-rose-900/50 transition-all duration-300 flex items-center gap-2 hover:scale-105 active:scale-95 group"
+          >
+            <Flame className="w-5 h-5 group-hover:animate-bounce" />
+            Get Started
+          </button>
 
-          {/* Private Card: Officer Access */}
-          <div className="bg-white p-10 flex flex-col items-center hover:scale-[1.02] transition-transform duration-500 shadow-2xl shadow-slate-200 border border-slate-100 rounded-[2.5rem] relative overflow-hidden group">
-
-            {/* Decorative Blur */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100/50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-
-            <div className="h-20 w-20 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-2xl rotate-3 flex items-center justify-center mb-8 shadow-lg shadow-indigo-200 border border-white ring-4 ring-indigo-50 relative z-10">
-              <ShieldCheck className="h-10 w-10 text-white" />
-            </div>
-            <h2 className="text-3xl font-black text-slate-800 mb-2 tracking-tight relative z-10">Officer Portal</h2>
-            <p className="text-slate-400 mb-8 text-center text-sm font-bold relative z-10">
-              Secure access for Fire Safety Officers.
-            </p>
-
-            <div className="w-full space-y-4 relative z-10">
-              <button
-                onClick={() => router.push('/login')}
-                className="w-full py-4 text-lg flex items-center justify-center gap-3 group relative overflow-hidden bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xl shadow-blue-200 transition-all active:scale-95"
-              >
-                <span className="relative z-10">Enter Dashboard</span>
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform relative z-10" />
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-12 text-center">
-            <div className="inline-block px-6 py-3 rounded-full bg-white border border-slate-200 shadow-sm">
-              <p className="text-slate-500 text-sm font-bold flex items-center gap-2">
-                <QrCode className="h-4 w-4 text-blue-500" />
-                <span>Scan physical tags for public view</span>
-              </p>
-            </div>
-          </div>
-
+          <button
+            onClick={() => router.push('/scan')}
+            className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white font-semibold rounded-xl transition-all duration-300 flex items-center gap-2 backdrop-blur-sm"
+          >
+            <QrCode className="w-5 h-5" />
+            Scan Tag
+          </button>
         </div>
-      </main>
+      </div>
 
       {/* Footer */}
-      <footer className="text-center p-6 text-slate-400 text-xs font-bold tracking-widest uppercase">
-        <p>Siddhi Industrial Solutions &bull; System v2.3</p>
-      </footer>
+      <div className="absolute bottom-8 text-gray-500 text-xs font-bold tracking-widest uppercase animate-fade-in" style={{ animationDelay: '0.5s' }}>
+        &copy; {new Date().getFullYear()} IgnisGuard Systems
+      </div>
     </div>
   );
 }
