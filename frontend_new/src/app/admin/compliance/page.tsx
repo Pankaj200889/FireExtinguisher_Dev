@@ -153,7 +153,7 @@ export default function ComplianceReports() {
                 body: [row], // Single row for this asset page
                 theme: 'grid',
                 headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontSize: 8, halign: 'center' },
-                styles: { fontSize: 8, cellPadding: 2, valig: 'middle', halign: 'center' },
+                styles: { fontSize: 8, cellPadding: 2, valign: 'middle', halign: 'center' },
                 columnStyles: { 5: { cellWidth: 20 } } // Location width
             });
 
@@ -297,7 +297,7 @@ export default function ComplianceReports() {
                                         <td className="py-4 px-4 font-medium text-slate-500">{ext.last_inspector || '-'}</td>
                                         <td className="py-4 px-4 text-right">
                                             <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${ext.last_inspection_status === 'Operational' ? 'bg-green-100 text-green-600' :
-                                                    ext.last_inspection_status === 'Maintenance Required' ? 'bg-yellow-100 text-yellow-600' : 'bg-slate-100 text-slate-500'
+                                                ext.last_inspection_status === 'Maintenance Required' ? 'bg-yellow-100 text-yellow-600' : 'bg-slate-100 text-slate-500'
                                                 }`}>
                                                 {ext.last_inspection_status || 'Pending'}
                                             </span>
