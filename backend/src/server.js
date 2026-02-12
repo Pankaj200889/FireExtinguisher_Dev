@@ -58,4 +58,5 @@ async function startServer() {
     }
 }
 
+console.log("Railway Node.js Backend Active - Main Branch");
 startServer();
