@@ -290,7 +290,7 @@ const PublicAssetView = () => {
                                         <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-2">Evidence Photos</p>
                                         <div className="grid grid-cols-2 gap-2">
                                             {lastInspection.evidence_photos.map((photo, i) => (
-                                                <img key={i} src={photo.startsWith('http') || photo.startsWith('/uploads') ? `http://localhost:5000${photo}` : photo} alt="Evidence" className="w-full h-32 object-cover rounded-lg border border-gray-200" />
+                                                <img key={i} src={photo.startsWith('http') ? photo : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${photo}`} alt="Evidence" className="w-full h-32 object-cover rounded-lg border border-gray-200" />
                                             ))}
                                         </div>
                                     </div>
