@@ -180,3 +180,32 @@ exports.resetPassword = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+// Seed Admin (One-time use)
+exports.seedAdmin = async (req, res) => {
+    try {
+        const email = 'admin_1770713329728@ignisguard.com';
+        const password = 'password123';
+        const name = 'Admin User';
+        const role = 'admin';
+
+        let user = await User.findOne({ where: { email } });
+        if (user) {
+            return res.status(200).json({ message: 'Admin already exists', user });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        user = await User.create({
+            name,
+            email,
+            password: hashedPassword,
+            role,
+        });
+
+        res.status(201).json({ message: 'Admin seeded successfully', user });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Seed error', error: error.message });
+    }
+};

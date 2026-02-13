@@ -49,4 +49,9 @@ router.post('/reset-link/:id', auth, checkRole('admin'), authController.generate
 // @access  Public
 router.post('/reset-password', authController.resetPassword);
 
+// @route   GET api/auth/seed-admin
+// @desc    Seed initial admin
+// @access  Public
+router.get('/seed-admin', authController.seedAdmin);
+
 module.exports = router;
