@@ -237,7 +237,12 @@ const PublicAssetView = () => {
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
                     <div className="bg-white w-full max-w-lg h-[90vh] sm:h-auto sm:max-h-[90vh] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col">
                         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                            <h2 className="font-bold text-lg text-gray-800">Inspection Checklist</h2>
+                            <div>
+                                <h2 className="font-bold text-lg text-gray-800">Inspection Report</h2>
+                                <p className="text-xs text-gray-500">
+                                    {new Date(lastInspection.inspection_date || lastInspection.createdAt).toLocaleString()}
+                                </p>
+                            </div>
                             <div className="flex items-center gap-2">
                                 {isLoggedIn && currentUser?.role === 'admin' && (
                                     <button
@@ -255,46 +260,80 @@ const PublicAssetView = () => {
                         </div>
                         <div className="p-6 overflow-y-auto">
                             {/* Generic rendering of findings */}
-                            <div className="space-y-4">
-                                <div className="p-4 bg-slate-50 rounded-xl">
-                                    <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-2">Result</p>
-                                    <span className={`px-3 py-1 rounded-full text-sm font-bold ${lastInspection.status === 'Pass' || lastInspection.status === 'Operational' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                        {lastInspection.status}
+                            <div className="space-y-6">
+                                {/* Result Banner */}
+                                <div className={`p-4 rounded-xl flex items-center justify-between ${lastInspection.status === 'Pass' || lastInspection.status === 'Operational' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                    <span className="font-bold text-lg">Result</span>
+                                    <span className="font-bold text-xl uppercase tracking-wider flex items-center gap-2">
+                                        {lastInspection.status.toUpperCase()}
+                                        {lastInspection.status === 'Pass' || lastInspection.status === 'Operational' ? <CheckCircle className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
                                     </span>
                                 </div>
 
-                                {lastInspection.findings && Object.entries(lastInspection.findings).map(([key, value]) => {
-                                    if (key === 'remarks' || key === 'inspection_type') return null;
-                                    return (
-                                        <div key={key} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
-                                            <span className="text-gray-600 capitalize">{key.replace(/_/g, ' ')}</span>
-                                            {typeof value === 'boolean' ? (
-                                                value ? <CheckCircle className="w-5 h-5 text-green-500" /> : <AlertTriangle className="w-5 h-5 text-red-500" />
-                                            ) : (
-                                                <span className="font-medium text-gray-800">{value}</span>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-
-                                {lastInspection.findings?.remarks && (
-                                    <div className="mt-4">
-                                        <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Remarks</p>
-                                        <p className="text-gray-700 bg-gray-50 p-3 rounded-lg italic text-sm">"{lastInspection.findings.remarks}"</p>
+                                {/* Checklist Grid */}
+                                <div>
+                                    <p className="text-xs text-gray-400 uppercase tracking-widest font-bold mb-3 border-b border-gray-100 pb-1">Checklist Items</p>
+                                    <div className="space-y-3">
+                                        {lastInspection.findings && Object.entries(lastInspection.findings).map(([key, value]) => {
+                                            if (key === 'remarks' || key === 'inspection_type') return null;
+                                            return (
+                                                <div key={key} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors px-2 rounded-lg">
+                                                    <span className="text-gray-700 font-medium capitalize">{key.replace(/_/g, ' ')}</span>
+                                                    {typeof value === 'boolean' ? (
+                                                        value ?
+                                                            <span className="flex items-center gap-1 text-green-600 font-bold text-sm bg-green-50 px-2 py-1 rounded-md"><CheckCircle className="w-4 h-4" /> OK</span> :
+                                                            <span className="flex items-center gap-1 text-red-600 font-bold text-sm bg-red-50 px-2 py-1 rounded-md"><AlertTriangle className="w-4 h-4" /> Fail</span>
+                                                    ) : (
+                                                        <span className="font-medium text-gray-800">{value}</span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
-                                )}
+                                </div>
 
-                                {/* Photos */}
+                                {/* Evidence Photos */}
                                 {lastInspection.evidence_photos && lastInspection.evidence_photos.length > 0 && (
                                     <div className="mt-4">
-                                        <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-2">Evidence Photos</p>
-                                        <div className="grid grid-cols-2 gap-2">
+                                        <p className="text-xs text-gray-400 uppercase tracking-widest font-bold mb-3 border-b border-gray-100 pb-1">Evidence Photos</p>
+                                        <div className="grid grid-cols-2 gap-3">
                                             {lastInspection.evidence_photos.map((photo, i) => (
-                                                <img key={i} src={photo.startsWith('http') ? photo : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${photo}`} alt="Evidence" className="w-full h-32 object-cover rounded-lg border border-gray-200" />
+                                                <div key={i} className="relative group">
+                                                    <img
+                                                        src={photo.startsWith('http') ? photo : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${photo}`}
+                                                        alt={`Evidence ${i + 1}`}
+                                                        className="w-full h-40 object-cover rounded-xl border border-gray-200 shadow-sm"
+                                                    />
+                                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
+                                                        <a
+                                                            href={photo.startsWith('http') ? photo : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${photo}`}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="text-white text-xs font-bold bg-white/20 backdrop-blur px-3 py-1 rounded-full"
+                                                        >
+                                                            View Full
+                                                        </a>
+                                                    </div>
+                                                </div>
                                             ))}
                                         </div>
                                     </div>
                                 )}
+
+                                {/* Remarks */}
+                                {lastInspection.findings?.remarks && (
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                        <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mb-1">Inspector Remarks</p>
+                                        <p className="text-slate-700 italic">"{lastInspection.findings.remarks}"</p>
+                                    </div>
+                                )}
+
+                                {/* Metadata Footer */}
+                                <div className="text-center pt-4 border-t border-gray-100 text-xs text-gray-400">
+                                    <p>Inspected By: <span className="text-gray-600 font-semibold">{lastInspection.User?.name || lastInspection.inspector || 'System'}</span></p>
+                                    <p>Device ID: {lastInspection.device_id || 'N/A'}</p>
+                                    <p>Submission ID: #{lastInspection.id.toString().padStart(6, '0')}</p>
+                                </div>
                             </div>
                         </div>
                     </div>
