@@ -570,7 +570,7 @@ const InspectionForm = () => {
                             <div key={idx} className={`relative aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-colors overflow-hidden ${photos[idx] ? 'border-green-500 bg-green-500/10' : 'border-gray-600 hover:border-gray-400 hover:bg-slate-800'}`}>
                                 {photos[idx] ? (
                                     <>
-                                        <img src={photos[idx].startsWith('http') || photos[idx].startsWith('/uploads') ? `http://localhost:5000${photos[idx]}` : photos[idx]} alt="Evidence" className="absolute inset-0 w-full h-full object-cover opacity-80" />
+                                        <img src={photos[idx].startsWith('http') ? photos[idx] : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${photos[idx]}`} alt="Evidence" className="absolute inset-0 w-full h-full object-cover opacity-80" />
                                         <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-10">
                                             <CheckCircle className="w-10 h-10 text-green-500 shadow-xl" />
                                         </div>

@@ -167,7 +167,7 @@ const Dashboard = () => {
         if (!url) return null;
         if (url.startsWith('http') || url.startsWith('data:')) return url;
         // Fallback for relative paths: point to backend directly
-        return `http://localhost:5000${url}`;
+        return url.startsWith('http') ? url : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${url}`;
     };
 
     return (

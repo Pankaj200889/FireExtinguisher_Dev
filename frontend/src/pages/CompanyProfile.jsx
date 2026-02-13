@@ -80,7 +80,7 @@ const CompanyProfile = () => {
         // Since we didn't set up a proxy for uploads in vite config properly yet,
         // we might need to prepend backend URL. 
         // For now, let's assume relative path works if proxy is set, or prepend API base.
-        return `http://localhost:5000${url}`;
+        return url.startsWith('http') ? url : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${url}`;
     };
 
     return (
