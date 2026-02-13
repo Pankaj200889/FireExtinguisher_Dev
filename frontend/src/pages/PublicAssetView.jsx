@@ -20,6 +20,12 @@ const PublicAssetView = () => {
         setIsLoggedIn(!!token);
         setCurrentUser(JSON.parse(localStorage.getItem('user') || '{}'));
 
+        // Check for view=checklist param
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('view') === 'checklist') {
+            setShowChecklist(true);
+        }
+
         // Fetch Asset
         const fetchAsset = async () => {
             try {

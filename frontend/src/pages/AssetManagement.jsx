@@ -217,15 +217,15 @@ const AssetManagement = () => {
 
                             <div className="mt-6 pt-4 border-t border-white/5 flex gap-2">
                                 <button
-                                    onClick={() => navigate(`/assets/${type}/edit/${encodeURIComponent(asset.serial_number)}`)}
+                                    onClick={() => navigate(`/v/${encodeURIComponent(asset.serial_number)}`)}
                                     className="flex-1 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm font-medium transition-colors">
                                     Details
                                 </button>
                                 {userRole === 'admin' && (
                                     <button
-                                        onClick={() => navigate(`/assets/${type}/edit/${encodeURIComponent(asset.serial_number)}`)}
+                                        onClick={() => navigate(`/v/${encodeURIComponent(asset.serial_number)}?view=checklist`)}
                                         className="px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg transition-colors"
-                                        title="Edit Details"
+                                        title="View/Edit Report"
                                     >
                                         <Edit className="w-4 h-4" />
                                     </button>
