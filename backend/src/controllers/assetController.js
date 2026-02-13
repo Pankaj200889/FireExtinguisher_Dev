@@ -17,9 +17,8 @@ exports.createAsset = async (req, res) => {
         }
 
         // Generate QR Code URL
-        // TODO: update domain when deployed
-        // Using local IP for dev testing so phone can scan
-        const appDomain = process.env.APP_DOMAIN || 'http://192.168.1.3:5173';
+        // Use FRONTEND_URL from environment (e.g. https://www.siddhiss.com) or fallback
+        const appDomain = process.env.FRONTEND_URL || 'http://localhost:5173';
         const qrUrl = `${appDomain}/v/${serial_number}`;
 
         // Generate default name if not provided
