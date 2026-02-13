@@ -31,4 +31,9 @@ router.get('/history/:id', auth, inspectionController.getAssetHistory);
 // @access  Private
 router.get('/:id', auth, inspectionController.getInspectionById);
 
+// @route   PUT api/inspections/:id
+// @desc    Update existing inspection
+// @access  Private (Admin)
+router.put('/:id', auth, inspectionController.updateInspection);
+
 module.exports = router;

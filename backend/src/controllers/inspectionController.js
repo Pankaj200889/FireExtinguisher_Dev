@@ -133,6 +133,59 @@ exports.getAssetHistory = async (req, res) => {
     }
 };
 // Get Single Inspection by ID
+// Update existing inspection
+exports.updateInspection = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            status, findings, evidence_photos,
+            // Maintenance Dates (Optional updates)
+            last_hydro_test_date, next_hydro_test_due,
+            last_refilled_date, next_refill_due,
+            discharge_date
+        } = req.body;
+
+        const inspection = await Inspection.findByPk(id);
+        if (!inspection) {
+            return res.status(404).json({ message: 'Inspection not found' });
+        }
+
+        // Update Inspection
+        await inspection.update({
+            status,
+            findings,
+            evidence_photos,
+            // Assuming inspection_date remains original or updates to now? Keeping original usually better for history, or explicit update.
+            // Let's keep original date unless specifically requested, but for corrections usually we keep the record ID.
+        });
+
+        // Update Asset Status & Dates (Sync with latest correction)
+        const asset = await Asset.findByPk(inspection.asset_id);
+        if (asset) {
+            let newAssetStatus = asset.status;
+            if (status === 'Fail' || status === 'Maintenance') {
+                newAssetStatus = 'Maintenance Required';
+            } else if (status === 'Pass') {
+                newAssetStatus = 'Operational';
+            }
+
+            const updateData = { status: newAssetStatus };
+            if (last_hydro_test_date) updateData.last_hydro_test_date = last_hydro_test_date;
+            if (next_hydro_test_due) updateData.next_hydro_test_due = next_hydro_test_due;
+            if (last_refilled_date) updateData.last_refilled_date = last_refilled_date;
+            if (next_refill_due) updateData.next_refill_due = next_refill_due;
+            if (discharge_date) updateData.discharge_date = discharge_date;
+
+            await asset.update(updateData);
+        }
+
+        res.json({ message: 'Inspection updated successfully', inspection });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error check', error: error.message });
+    }
+};
+
 exports.getInspectionById = async (req, res) => {
     try {
         const { id } = req.params;

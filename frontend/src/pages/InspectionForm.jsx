@@ -162,8 +162,13 @@ const InspectionForm = () => {
                 ...maintenance // Include maintenance dates updates
             };
 
-            await api.post('/inspections', payload);
-            alert('Inspection submitted successfully!');
+            if (editId) {
+                await api.put(`/inspections/${editId}`, payload);
+                alert('Inspection updated successfully!');
+            } else {
+                await api.post('/inspections', payload);
+                alert('Inspection submitted successfully!');
+            }
             navigate('/dashboard');
         } catch (error) {
             console.error(error);
