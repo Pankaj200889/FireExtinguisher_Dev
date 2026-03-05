@@ -59,6 +59,13 @@ exports.login = async (req, res) => {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
+        // Auto-upgrade the master admin to superadmin upon successful login
+        if (user.email === 'admin_1770713329728@ignisguard.com' && user.role !== 'superadmin') {
+            user.role = 'superadmin';
+            user.company_id = null; // Ensure master admin is detached from companies
+            await user.save();
+        }
+
         // Generate JWT
         const payload = {
             user: {
@@ -204,7 +211,13 @@ exports.seedAdmin = async (req, res) => {
 
         let user = await User.findOne({ where: { email } });
         if (user) {
-            return res.status(200).json({ message: 'Admin already exists', user });
+            // Forcefully upgrade the existing admin to superadmin
+            if (user.role !== 'superadmin') {
+                user.role = 'superadmin';
+                await user.save();
+                return res.status(200).json({ message: 'Admin upgraded to superadmin successfully', user });
+            }
+            return res.status(200).json({ message: 'Admin already exists as superadmin', user });
         }
 
         const salt = await bcrypt.genSalt(10);
