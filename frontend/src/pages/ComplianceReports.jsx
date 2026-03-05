@@ -334,7 +334,24 @@ const ComplianceReports = () => {
         a.click();
     };
 
-    // ... (generateCombinedCSV kept as is) ...
+    const generateCombinedCSV = () => {
+        const headers = ["Serial Number", "Type", "Status", "Location", "Last Inspected"];
+        const rows = filteredAssets.map(ext => [
+            ext.serial_number,
+            ext.type,
+            ext.status,
+            ext.location,
+            ext.last_inspection_date ? new Date(ext.last_inspection_date).toLocaleDateString() : '-'
+        ].map(f => `"${String(f || '').replace(/"/g, '""')}"`).join(','));
+
+        const csvContent = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Master_Asset_List_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+    };
 
     if (loading) return <div className="text-white text-center p-10">Loading Report Data...</div>;
 
