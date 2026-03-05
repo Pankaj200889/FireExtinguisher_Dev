@@ -153,9 +153,17 @@ exports.generateResetLink = async (req, res) => {
         await user.save();
 
         // Use request origin/host based on the subdomain they are requesting from
-        const host = req.get('x-forwarded-host') || req.get('host');
-        const protocol = req.get('x-forwarded-proto') || req.protocol;
-        const appDomain = req.get('origin') || `${protocol}://${host}` || process.env.FRONTEND_URL || 'http://localhost:5173';
+        let appDomain = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, '') : 'http://localhost:5173';
+        const tenantSubdomain = req.headers['x-tenant-subdomain'];
+
+        // Always try to use the caller's true origin first, or fall back to rewriting the env var's subdomain
+        if (req.get('origin') && !req.get('origin').includes('railway') && !req.get('origin').includes('vercel')) {
+            appDomain = req.get('origin').replace(/\/$/, '');
+        } else if (tenantSubdomain && appDomain.includes('siddhiss.com')) {
+            // Replace whatever subdomain is configured in the env to the actual tenant's subdomain
+            appDomain = `https://${tenantSubdomain}.siddhiss.com`;
+        }
+
         const resetUrl = `${appDomain}/reset-password/${resetToken}`;
 
         res.json({ success: true, resetUrl });
