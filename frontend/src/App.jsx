@@ -10,6 +10,7 @@ import InspectionForm from './pages/InspectionForm';
 import UserManagement from './pages/UserManagement';
 import CompanyProfile from './pages/CompanyProfile';
 import ScanQR from './pages/ScanQR';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
 
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -33,6 +34,7 @@ function App() {
         <Route path="/scan" element={<ScanQR />} />
         <Route path="/admin/users" element={<UserManagement />} />
         <Route path="/admin/company" element={<CompanyProfile />} />
+        <Route path="/superadmin" element={<SuperAdminDashboard />} />
         <Route path="/compliance" element={
           <React.Suspense fallback={<div className="p-4 text-white">Loading...</div>}>
             <ComplianceReports />

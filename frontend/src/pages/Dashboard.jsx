@@ -421,6 +421,21 @@ const Dashboard = () => {
                     </div>
                 </button>
 
+                {/* Super Admin Only Features */}
+                {currentUser?.role === 'superadmin' && (
+                    <button
+                        onClick={() => navigate('/superadmin')}
+                        className="flex items-center gap-4 p-6 rounded-xl bg-slate-800/50 border border-white/5 hover:border-brand-500/50 hover:bg-slate-800 transition-all group col-span-1 md:col-span-3">
+                        <div className="p-3 rounded-lg bg-pink-500/10 text-pink-400 group-hover:bg-pink-500 group-hover:text-white transition-colors">
+                            <Building2 className="w-6 h-6" />
+                        </div>
+                        <div className="text-left">
+                            <h3 className="font-semibold text-pink-400">Super Admin Command Center</h3>
+                            <p className="text-sm text-gray-400">Manage Tenant Companies & Subscriptions</p>
+                        </div>
+                    </button>
+                )}
+
                 {/* Admin Only Features */}
                 {currentUser?.role === 'admin' && (
                     <>
