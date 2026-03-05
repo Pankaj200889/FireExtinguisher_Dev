@@ -21,9 +21,10 @@ exports.createAsset = async (req, res) => {
             return res.status(400).json({ message: 'Asset with this serial number already exists in your company' });
         }
 
-        // Generate QR Code URL
-        // Use FRONTEND_URL from environment (e.g. https://www.siddhiss.com) or fallback
-        const appDomain = process.env.FRONTEND_URL || 'http://localhost:5173';
+        // Use request origin/host based on the subdomain they are requesting from
+        const host = req.get('x-forwarded-host') || req.get('host');
+        const protocol = req.get('x-forwarded-proto') || req.protocol;
+        const appDomain = req.get('origin') || `${protocol}://${host}` || process.env.FRONTEND_URL || 'http://localhost:5173';
         const qrUrl = `${appDomain}/v/${serial_number}`;
 
         // Generate default name if not provided

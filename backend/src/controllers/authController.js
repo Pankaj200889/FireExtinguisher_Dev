@@ -152,8 +152,10 @@ exports.generateResetLink = async (req, res) => {
 
         await user.save();
 
-        // Use environment variable, request origin, or localhost fallback
-        const appDomain = process.env.FRONTEND_URL || req.get('origin') || 'http://localhost:5173';
+        // Use request origin/host based on the subdomain they are requesting from
+        const host = req.get('x-forwarded-host') || req.get('host');
+        const protocol = req.get('x-forwarded-proto') || req.protocol;
+        const appDomain = req.get('origin') || `${protocol}://${host}` || process.env.FRONTEND_URL || 'http://localhost:5173';
         const resetUrl = `${appDomain}/reset-password/${resetToken}`;
 
         res.json({ success: true, resetUrl });
