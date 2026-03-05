@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, Building2, ShieldCheck, Search, Plus, Trash2, ShieldAlert } from 'lucide-react';
+import { Users, Building2, ShieldCheck, Search, Plus, Trash2, ShieldAlert, Pencil } from 'lucide-react';
 import api from '../lib/api';
 
 const SuperAdminDashboard = () => {
@@ -12,6 +12,9 @@ const SuperAdminDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editData, setEditData] = useState({ id: null, companyName: '', adminName: '' });
 
     // Form State
     const [formData, setFormData] = useState({
@@ -52,6 +55,30 @@ const SuperAdminDashboard = () => {
         } catch (error) {
             alert(error.response?.data?.message || 'Failed to create company');
         }
+    };
+
+    const handleEditSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await api.put(`/superadmin/companies/${editData.id}`, {
+                companyName: editData.companyName,
+                adminName: editData.adminName
+            });
+            setShowEditModal(false);
+            setEditData({ id: null, companyName: '', adminName: '' });
+            fetchCompanies();
+        } catch (error) {
+            alert(error.response?.data?.message || 'Failed to update company');
+        }
+    };
+
+    const openEditModal = (company) => {
+        setEditData({
+            id: company.id,
+            companyName: company.name,
+            adminName: company.Users && company.Users.length > 0 ? company.Users[0].name : ''
+        });
+        setShowEditModal(true);
     };
 
     const toggleStatus = async (id, currentStatus) => {
@@ -133,12 +160,21 @@ const SuperAdminDashboard = () => {
                                     <p className="text-xs text-brand-400">{company.subdomain}.siddhiss.com</p>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => toggleStatus(company.id, company.is_active)}
-                                className={`px-3 py-1 rounded-full text-xs font-bold border ${company.is_active ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20 hover:bg-green-500/20 hover:text-green-400 hover:border-green-500/20'}`}
-                            >
-                                {company.is_active ? 'Active' : 'Suspended'}
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => openEditModal(company)}
+                                    className="p-2 rounded-full bg-slate-700/50 text-gray-400 hover:text-white hover:bg-slate-700 transition-colors border border-white/5"
+                                    title="Edit Company Details"
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => toggleStatus(company.id, company.is_active)}
+                                    className={`px-3 py-1 rounded-full text-xs font-bold border ${company.is_active ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20 hover:bg-green-500/20 hover:text-green-400 hover:border-green-500/20'}`}
+                                >
+                                    {company.is_active ? 'Active' : 'Suspended'}
+                                </button>
+                            </div>
                         </div>
                         <div className="text-sm text-gray-400 mt-4 border-t border-white/5 pt-4">
                             <p>Created: {new Date(company.createdAt).toLocaleDateString()}</p>
@@ -178,6 +214,33 @@ const SuperAdminDashboard = () => {
                             <div className="flex justify-end gap-3 mt-8">
                                 <button type="button" onClick={() => setShowCreateModal(false)} className="px-5 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
                                 <button type="submit" className="px-6 py-2 bg-gradient-to-r from-pink-600 to-red-600 rounded-xl text-white font-bold tracking-wide hover:opacity-90 shadow-lg">Provision System</button>
+                            </div>
+                        </form>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Edit Modal */}
+            {showEditModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-slate-900 border border-white/10 rounded-3xl p-8 max-w-md w-full shadow-2xl relative"
+                    >
+                        <h2 className="text-2xl font-bold text-white mb-6">Edit Tenant Details</h2>
+                        <form onSubmit={handleEditSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Company Name</label>
+                                <input required type="text" value={editData.companyName} onChange={e => setEditData({ ...editData, companyName: e.target.value })} className="w-full bg-slate-800 p-3 rounded-xl border border-white/10 text-white outline-none focus:border-brand-500" placeholder="e.g. Demo Corp" />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Default Admin Name</label>
+                                <input required type="text" value={editData.adminName} onChange={e => setEditData({ ...editData, adminName: e.target.value })} className="w-full bg-slate-800 p-3 rounded-xl border border-white/10 text-white outline-none focus:border-brand-500" placeholder="e.g. John Doe" />
+                            </div>
+                            <div className="flex justify-end gap-3 mt-8">
+                                <button type="button" onClick={() => setShowEditModal(false)} className="px-5 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
+                                <button type="submit" className="px-6 py-2 bg-gradient-to-r from-pink-600 to-red-600 rounded-xl text-white font-bold tracking-wide hover:opacity-90 shadow-lg">Save Changes</button>
                             </div>
                         </form>
                     </motion.div>

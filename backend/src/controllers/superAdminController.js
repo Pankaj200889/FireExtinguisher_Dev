@@ -56,11 +56,52 @@ exports.createCompany = async (req, res) => {
 exports.getAllCompanies = async (req, res) => {
     try {
         const companies = await Company.findAll({
+            include: [{
+                model: User,
+                attributes: ['id', 'name', 'email'],
+                where: { role: 'admin' },
+                required: false
+            }],
             order: [['createdAt', 'DESC']]
         });
         res.json(companies);
     } catch (error) {
         console.error('Get Companies Error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// @route   PUT api/superadmin/companies/:id
+// @desc    Edit company name and default admin name
+// @access  SuperAdmin
+exports.editCompany = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { companyName, adminName } = req.body;
+
+        const company = await Company.findByPk(id);
+        if (!company) {
+            return res.status(404).json({ message: 'Company not found' });
+        }
+
+        // Update company name
+        if (companyName) {
+            company.name = companyName;
+            await company.save();
+        }
+
+        // Try to update the first admin's name
+        if (adminName) {
+            const adminUser = await User.findOne({ where: { company_id: id, role: 'admin' } });
+            if (adminUser) {
+                adminUser.name = adminName;
+                await adminUser.save();
+            }
+        }
+
+        res.json({ message: 'Company updated successfully', company });
+    } catch (error) {
+        console.error('Edit Company Error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };

@@ -13,6 +13,9 @@ router.post('/companies', superAdminController.createCompany);
 // Get all companies
 router.get('/companies', superAdminController.getAllCompanies);
 
+// Edit company details
+router.put('/companies/:id', superAdminController.editCompany);
+
 // Toggle company active status
 router.put('/companies/:id/status', superAdminController.toggleCompanyStatus);
 
