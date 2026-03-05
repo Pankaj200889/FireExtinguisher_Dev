@@ -6,8 +6,8 @@ const checkRole = require('../middleware/roleCheck');
 
 // @route   POST api/auth/register
 // @desc    Register user
-// @access  Private (Admin only) - actually public for initial setup usually, or protected
-router.post('/register', authController.register);
+// @access  Private (Admin only)
+router.post('/register', auth, checkRole('admin'), authController.register);
 
 // @route   POST api/auth/login
 // @desc    Authenticate user & get token
