@@ -10,10 +10,15 @@ exports.createAsset = async (req, res) => {
             specifications, status
         } = req.body;
 
-        // Check if serial number exists
-        const existingAsset = await Asset.findOne({ where: { serial_number } });
+        // Check if serial number exists within the same company
+        const existingAsset = await Asset.findOne({
+            where: {
+                serial_number,
+                company_id: req.user.company_id
+            }
+        });
         if (existingAsset) {
-            return res.status(400).json({ message: 'Asset with this serial number already exists' });
+            return res.status(400).json({ message: 'Asset with this serial number already exists in your company' });
         }
 
         // Generate QR Code URL
@@ -38,6 +43,7 @@ exports.createAsset = async (req, res) => {
             qr_code_url: qrUrl,
             status: status, // Let model default handle it if undefined
             created_by: req.user ? req.user.id : null, // Track creator
+            company_id: req.user ? req.user.company_id : null,
             // last_inspection_date remains null initially
         });
 
@@ -58,6 +64,7 @@ exports.getAllAssets = async (req, res) => {
 
         // Base options
         let options = {
+            where: { company_id: req.user.company_id },
             order: [['createdAt', 'DESC']]
         };
 
@@ -98,6 +105,7 @@ exports.getComplianceReports = async (req, res) => {
         console.log("[DEBUG] Fetching Compliance Reports...");
 
         const assets = await Asset.findAll({
+            where: { company_id: req.user.company_id },
             order: [
                 ['createdAt', 'DESC'],
                 [Inspection, 'createdAt', 'DESC']
@@ -146,7 +154,10 @@ exports.getAssetInspections = async (req, res) => {
 
         console.log("getAssetInspections - User ID:", userId, "Role:", role);
 
-        const whereClause = { asset_id: id };
+        const whereClause = {
+            asset_id: id,
+            company_id: req.user.company_id
+        };
 
         // Inspectors can only see their own inspections
         if (role && role.toLowerCase() === 'inspector') {
@@ -175,7 +186,9 @@ exports.getAssetInspections = async (req, res) => {
 // Get asset by ID
 exports.getAssetById = async (req, res) => {
     try {
-        const asset = await Asset.findByPk(req.params.id);
+        const asset = await Asset.findOne({
+            where: { id: req.params.id, company_id: req.user.company_id }
+        });
         if (!asset) {
             return res.status(404).json({ message: 'Asset not found' });
         }
@@ -224,7 +237,9 @@ exports.updateAsset = async (req, res) => {
             specifications, status
         } = req.body;
 
-        const asset = await Asset.findByPk(id);
+        const asset = await Asset.findOne({
+            where: { id: id, company_id: req.user.company_id }
+        });
         if (!asset) {
             return res.status(404).json({ message: 'Asset not found' });
         }
@@ -256,7 +271,9 @@ exports.updateAsset = async (req, res) => {
 exports.deleteAsset = async (req, res) => {
     try {
         const { id } = req.params;
-        const asset = await Asset.findByPk(id);
+        const asset = await Asset.findOne({
+            where: { id: id, company_id: req.user.company_id }
+        });
 
         if (!asset) {
             return res.status(404).json({ message: 'Asset not found' });

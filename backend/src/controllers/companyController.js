@@ -3,13 +3,13 @@ const { Company } = require('../models');
 // Get Company Profile (Singleton)
 exports.getProfile = async (req, res) => {
     try {
-        let company = await Company.findOne();
+        if (!req.user || !req.user.company_id) {
+            return res.status(403).json({ message: 'User is not assigned to a company' });
+        }
+
+        let company = await Company.findByPk(req.user.company_id);
         if (!company) {
-            // Create default if not exists
-            company = await Company.create({
-                name: 'IgnisGuard User',
-                contact_email: 'admin@ignisguard.com'
-            });
+            return res.status(404).json({ message: 'Company profile not found' });
         }
         res.json(company);
     } catch (error) {
@@ -21,12 +21,17 @@ exports.getProfile = async (req, res) => {
 // Update Company Profile
 exports.updateProfile = async (req, res) => {
     try {
-        let company = await Company.findOne();
-        if (!company) {
-            company = await Company.create(req.body);
-        } else {
-            await company.update(req.body);
+        if (!req.user || !req.user.company_id) {
+            return res.status(403).json({ message: 'User is not assigned to a company' });
         }
+
+        let company = await Company.findByPk(req.user.company_id);
+        if (!company) {
+            return res.status(404).json({ message: 'Company not found' });
+        }
+
+        // Prevent updating critical setup fields directly this way if needed, but standard update is fine for now
+        await company.update(req.body);
         res.json(company);
     } catch (error) {
         console.error(error);
@@ -45,12 +50,16 @@ exports.uploadLogo = async (req, res) => {
         const logoUrl = req.file.path || req.file.secure_url;
         console.log('File uploaded to Cloudinary:', logoUrl);
 
-        let company = await Company.findOne();
-        if (!company) {
-            company = await Company.create({ logo_url: logoUrl });
-        } else {
-            await company.update({ logo_url: logoUrl });
+        if (!req.user || !req.user.company_id) {
+            return res.status(403).json({ message: 'User is not assigned to a company' });
         }
+
+        let company = await Company.findByPk(req.user.company_id);
+        if (!company) {
+            return res.status(404).json({ message: 'Company not found' });
+        }
+
+        await company.update({ logo_url: logoUrl });
 
         res.json({ logo_url: logoUrl });
     } catch (error) {

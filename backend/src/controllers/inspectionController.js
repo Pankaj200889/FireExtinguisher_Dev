@@ -54,15 +54,18 @@ exports.submitInspection = async (req, res) => {
         } = req.body;
         const inspector_id = req.user.id;
 
-        const asset = await Asset.findByPk(asset_id);
+        const asset = await Asset.findOne({
+            where: { id: asset_id, company_id: req.user.company_id }
+        });
         if (!asset) {
-            return res.status(404).json({ message: 'Asset not found' });
+            return res.status(404).json({ message: 'Asset not found or unauthorized' });
         }
 
         // Create Inspection
         const inspection = await Inspection.create({
             asset_id,
             inspector_id,
+            company_id: req.user.company_id,
             status,
             findings,
             evidence_photos,
@@ -110,7 +113,10 @@ exports.getAssetHistory = async (req, res) => {
         const { id } = req.params;
         const { role, id: userId } = req.user;
 
-        const whereClause = { asset_id: id };
+        const whereClause = {
+            asset_id: id,
+            company_id: req.user.company_id
+        };
 
         // Inspectors can only see their own inspections
         if (role && role.toLowerCase() === 'inspector') {
@@ -145,7 +151,9 @@ exports.updateInspection = async (req, res) => {
             discharge_date
         } = req.body;
 
-        const inspection = await Inspection.findByPk(id);
+        const inspection = await Inspection.findOne({
+            where: { id: id, company_id: req.user.company_id }
+        });
         if (!inspection) {
             return res.status(404).json({ message: 'Inspection not found' });
         }
@@ -189,7 +197,8 @@ exports.updateInspection = async (req, res) => {
 exports.getInspectionById = async (req, res) => {
     try {
         const { id } = req.params;
-        const inspection = await Inspection.findByPk(id, {
+        const inspection = await Inspection.findOne({
+            where: { id: id, company_id: req.user.company_id },
             include: [{ model: User, attributes: ['name'] }]
         });
 
@@ -212,7 +221,10 @@ exports.getMyStats = async (req, res) => {
             return res.status(400).json({ message: "User ID missing" });
         }
 
-        const whereClause = { inspector_id };
+        const whereClause = {
+            inspector_id,
+            company_id: req.user.company_id
+        };
 
         const total = await Inspection.count({ where: whereClause });
         const passed = await Inspection.count({ where: { inspector_id, status: 'Pass' } });
@@ -222,7 +234,10 @@ exports.getMyStats = async (req, res) => {
         // Calculate Average Pass Rate per Category
         // 1. Fetch all inspections for this user (Raw, no joins to avoid filtering issues)
         const inspections = await Inspection.findAll({
-            where: { inspector_id },
+            where: {
+                inspector_id,
+                company_id: req.user.company_id
+            },
             raw: true
         });
 

@@ -6,7 +6,7 @@ const { User } = require('../models');
 // Register a new user (Admin only, or initial setup)
 exports.register = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role, company_id } = req.body;
 
         // Check if user exists
         let user = await User.findOne({ where: { email } });
@@ -24,6 +24,7 @@ exports.register = async (req, res) => {
             email,
             password: hashedPassword,
             role: role || 'inspector',
+            company_id: req.user ? req.user.company_id : company_id,
         });
 
         res.status(201).json({ message: 'User registered successfully', userId: user.id });
@@ -55,7 +56,8 @@ exports.login = async (req, res) => {
             user: {
                 id: user.id,
                 role: user.role,
-                name: user.name
+                name: user.name,
+                company_id: user.company_id
             },
         };
 
@@ -77,7 +79,11 @@ exports.login = async (req, res) => {
 // Get all users (Admin only)
 exports.getAllUsers = async (req, res) => {
     try {
+        // Enforce Multi-Tenant Scope
+        const whereClause = req.user.company_id ? { company_id: req.user.company_id } : {};
+
         const users = await User.findAll({
+            where: whereClause,
             attributes: { exclude: ['password'] },
             order: [['createdAt', 'DESC']]
         });

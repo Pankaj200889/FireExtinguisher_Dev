@@ -4,6 +4,7 @@ const { Asset, Inspection } = require('../models');
 exports.generateComplianceReport = async (req, res) => {
     try {
         const assets = await Asset.findAll({
+            where: { company_id: req.user.company_id },
             include: [{
                 model: Inspection,
                 limit: 1,
@@ -12,7 +13,7 @@ exports.generateComplianceReport = async (req, res) => {
         });
 
         const { Company } = require('../models');
-        const company = await Company.findOne();
+        const company = await Company.findByPk(req.user.company_id);
 
         // Fetch logo if exists
         // Note: PDFKit needs a buffer or local path for images. 
