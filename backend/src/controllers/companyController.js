@@ -18,6 +18,25 @@ exports.getProfile = async (req, res) => {
     }
 };
 
+// Public: Get Company Branding by Subdomain
+exports.getProfileBySubdomain = async (req, res) => {
+    try {
+        const subdomain = req.params.subdomain;
+        const company = await Company.findOne({
+            where: { subdomain },
+            attributes: ['id', 'name', 'logo_url', 'is_active']
+        });
+
+        if (!company) {
+            return res.status(404).json({ message: 'Company not found' });
+        }
+        res.json(company);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 // Update Company Profile
 exports.updateProfile = async (req, res) => {
     try {

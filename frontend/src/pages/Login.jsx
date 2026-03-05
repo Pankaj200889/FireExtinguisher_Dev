@@ -9,6 +9,40 @@ const Login = () => {
     const [formData, setFormData] = useState({ email: '', password: '' });
 
     const [error, setError] = useState('');
+    const [branding, setBranding] = useState(null);
+    const [loadingBranding, setLoadingBranding] = useState(true);
+
+    React.useEffect(() => {
+        const fetchBranding = async () => {
+            try {
+                // Get subdomain from hostname (e.g. client1.siddhiss.com -> client1)
+                const hostname = window.location.hostname;
+                const parts = hostname.split('.');
+
+                // Only act on subdomains, ignoring localhost, www, or naked domain
+                if (parts.length > 2 || (parts.length >= 2 && !hostname.includes('localhost'))) {
+                    // Extract the first part. If hostname is 'bw1.siddhiss.com', subdomain is 'bw1'
+                    let subdomain = parts[0];
+                    if (subdomain === 'www') {
+                        subdomain = parts[1];
+                    }
+
+                    if (subdomain && subdomain !== 'localhost') {
+                        const api = (await import('../lib/api')).default;
+                        const res = await api.get(`/company/public/${subdomain}`);
+                        setBranding(res.data);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load branding:', err);
+                // Fail silently, fallback to default UI
+            } finally {
+                setLoadingBranding(false);
+            }
+        };
+
+        fetchBranding();
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -45,8 +79,24 @@ const Login = () => {
                     <ChevronLeft className="w-4 h-4" /> Back to Home
                 </button>
 
-                <div className="mb-8 text-center">
-                    <h2 className="text-3xl font-bold text-white mb-2">Welcome Back</h2>
+                <div className="mb-8 text-center flex flex-col items-center">
+                    {loadingBranding ? (
+                        <div className="h-16 w-16 rounded-full bg-white/10 animate-pulse mb-2"></div>
+                    ) : branding?.logo_url ? (
+                        <img
+                            src={branding.logo_url}
+                            alt={`${branding.name} Logo`}
+                            className="w-20 h-20 rounded-full object-cover border-2 border-brand-500 shadow-lg shadow-brand-500/20 mb-4"
+                        />
+                    ) : (
+                        <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center text-2xl font-bold text-brand-500 mb-4 border border-white/10">
+                            {branding?.name ? branding.name.charAt(0) : 'IG'}
+                        </div>
+                    )}
+
+                    <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-orange-400 mb-2">
+                        {branding ? `Welcome to ${branding.name}` : 'Welcome Back'}
+                    </h2>
                     <p className="text-gray-400">Sign in to access your dashboard</p>
                     {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
                 </div>

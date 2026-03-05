@@ -21,6 +21,11 @@ function checkFileType(file, cb) {
     }
 }
 
+// @route   GET api/company/public/:subdomain
+// @desc    Get public company info by subdomain
+// @access  Public
+router.get('/public/:subdomain', companyController.getProfileBySubdomain);
+
 // @route   GET api/company
 // @desc    Get company profile
 // @access  Private
