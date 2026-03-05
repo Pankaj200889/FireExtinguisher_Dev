@@ -19,6 +19,14 @@ const User = sequelize.define('User', {
             isEmail: true,
         },
     },
+    company_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'Companies',
+            key: 'id'
+        }
+    },
     password: {
         type: DataTypes.STRING,
         allowNull: false,

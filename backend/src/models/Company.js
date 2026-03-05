@@ -24,6 +24,15 @@ const Company = sequelize.define('Company', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    subdomain: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        unique: true,
+    },
+    is_active: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+    },
     logo_url: {
         type: DataTypes.STRING,
         allowNull: true,

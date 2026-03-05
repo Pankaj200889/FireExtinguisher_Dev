@@ -11,6 +11,14 @@ const Inspection = sequelize.define('Inspection', {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
     },
+    company_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'Companies',
+            key: 'id'
+        }
+    },
     // Checklist results, remarks, and observation status
     findings: {
         type: DataTypes.JSONB,

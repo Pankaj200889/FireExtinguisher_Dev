@@ -11,6 +11,14 @@ const Asset = sequelize.define('Asset', {
         type: DataTypes.STRING,
         allowNull: false,
     },
+    company_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'Companies',
+            key: 'id'
+        }
+    },
     type: {
         type: DataTypes.STRING, // Changed from ENUM to STRING to avoid sync issues
         allowNull: false,
@@ -102,7 +110,7 @@ const Asset = sequelize.define('Asset', {
     indexes: [
         {
             unique: true,
-            fields: ['serial_number'],
+            fields: ['company_id', 'serial_number'],
         },
     ],
 });
