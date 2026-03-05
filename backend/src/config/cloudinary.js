@@ -10,7 +10,7 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
-        folder: 'ignisguard_companies',
+        folder: process.env.CLOUDINARY_FOLDER || 'ignisguard_companies',
         allowed_formats: ['jpg', 'png', 'jpeg'],
     },
 });
