@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { User } = require('../models');
+const { User, Company } = require('../models');
 
 // Register a new user (Admin only, or initial setup)
 exports.register = async (req, res) => {
@@ -43,6 +43,14 @@ exports.login = async (req, res) => {
         const user = await User.findOne({ where: { email } });
         if (!user) {
             return res.status(400).json({ message: 'Invalid credentials' });
+        }
+
+        // Check company active status (unless superadmin)
+        if (user.role !== 'superadmin' && user.company_id) {
+            const company = await Company.findByPk(user.company_id);
+            if (!company || !company.is_active) {
+                return res.status(403).json({ message: 'Account suspended. Please contact Siddhi Industrial Solutions.' });
+            }
         }
 
         // Validate password
@@ -192,7 +200,7 @@ exports.seedAdmin = async (req, res) => {
         const email = 'admin_1770713329728@ignisguard.com';
         const password = 'password123';
         const name = 'Admin User';
-        const role = 'admin';
+        const role = 'superadmin'; // Seed the first master admin
 
         let user = await User.findOne({ where: { email } });
         if (user) {
@@ -207,6 +215,7 @@ exports.seedAdmin = async (req, res) => {
             email,
             password: hashedPassword,
             role,
+            // no company_id needed for superadmin
         });
 
         res.status(201).json({ message: 'Admin seeded successfully', user });

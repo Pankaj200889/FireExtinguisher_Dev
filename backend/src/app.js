@@ -40,6 +40,7 @@ app.use('/api/inspections', require('./routes/inspectionRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/company', require('./routes/companyRoutes'));
 app.use('/api/upload', require('./routes/uploadRoutes'));
+app.use('/api/superadmin', require('./routes/superAdminRoutes'));
 
 // Static folder for uploads
 app.use('/uploads', express.static('uploads'));
