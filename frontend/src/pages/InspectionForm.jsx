@@ -43,10 +43,22 @@ const InspectionForm = () => {
             try {
                 // Get User
                 const userData = localStorage.getItem('user');
-                if (userData) setCurrentUser(JSON.parse(userData));
+                let parsedUser = null;
+                if (userData) {
+                    parsedUser = JSON.parse(userData);
+                    setCurrentUser(parsedUser);
+                }
 
                 const resAsset = await api.get(`/assets/public/${encodeURIComponent(id)}`);
                 const assetData = resAsset.data;
+
+                // Authorization check
+                if (parsedUser && parsedUser.role !== 'superadmin' && parsedUser.company_id !== assetData.company_id) {
+                    alert("Unauthorized to inspect this asset.");
+                    navigate('/dashboard');
+                    return;
+                }
+
                 setAsset(assetData);
 
                 // Initialize maintenance dates from asset or defaults

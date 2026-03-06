@@ -36,15 +36,16 @@ const AssetRegister = () => {
 
     const [userRole, setUserRole] = useState('');
 
+    const [currentUser, setCurrentUser] = useState(null);
+
     React.useEffect(() => {
         const user = localStorage.getItem('user');
         if (user) {
             const parsedUser = JSON.parse(user);
+            setCurrentUser(parsedUser);
             setUserRole(parsedUser.role);
         }
     }, []);
-
-    const canEdit = userRole === 'admin';
 
     // Populate data if Editing
     React.useEffect(() => {
@@ -54,6 +55,14 @@ const AssetRegister = () => {
             api.get(`/assets/public/${encodeURIComponent(serial)}`)
                 .then(res => {
                     const data = res.data;
+
+                    // Authorization Check
+                    if (currentUser && currentUser.role !== 'superadmin' && currentUser.company_id !== data.company_id) {
+                        alert("Unauthorized to edit this asset.");
+                        navigate(`/assets/${type}`);
+                        return;
+                    }
+
                     setAssetId(data.id);
                     setQrUrl(data.qr_code_url); // Keep existing QR for display
 
@@ -90,7 +99,7 @@ const AssetRegister = () => {
                 })
                 .finally(() => setLoading(false));
         }
-    }, [serial, type, navigate]);
+    }, [serial, type, navigate, currentUser]);
 
     // Fetch inspections when assetId is available
     React.useEffect(() => {
@@ -104,6 +113,8 @@ const AssetRegister = () => {
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
+
+    const canEdit = userRole === 'admin' || userRole === 'superadmin';
 
     const handleSubmit = async (e) => {
         e.preventDefault();

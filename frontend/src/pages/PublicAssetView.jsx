@@ -208,7 +208,7 @@ const PublicAssetView = () => {
 
                     {/* Action Buttons */}
                     <div className="pt-6 text-center space-y-3">
-                        {isLoggedIn ? (
+                        {(isLoggedIn && (currentUser?.role === 'superadmin' || currentUser?.company_id === asset.company_id)) ? (
                             <>
                                 <button
                                     onClick={handleInspect}
@@ -226,14 +226,14 @@ const PublicAssetView = () => {
                                     </button>
                                 )}
                             </>
-                        ) : (
+                        ) : !isLoggedIn ? (
                             <button
                                 onClick={handleLogin}
                                 className="text-brand-600 text-sm font-medium hover:underline flex items-center justify-center gap-2 mx-auto">
                                 <LogIn className="w-4 h-4" />
                                 Officer Login
                             </button>
-                        )}
+                        ) : null}
                     </div>
                 </div>
             </div>
