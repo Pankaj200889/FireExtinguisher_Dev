@@ -246,7 +246,7 @@ const AssetManagement = () => {
                                     className="flex-1 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm font-medium transition-colors">
                                     Details
                                 </button>
-                                {userRole === 'admin' && (
+                                {userRole === 'admin' && asset.last_inspection_date && (
                                     <button
                                         onClick={() => navigate(`/v/${encodeURIComponent(asset.serial_number)}?view=checklist`)}
                                         className="px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg transition-colors"

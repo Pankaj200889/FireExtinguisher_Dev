@@ -130,7 +130,7 @@ const PublicAssetView = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center p-4 md:p-8 font-sans">
-            <div className={`w-full max-w-lg bg-white rounded-3xl shadow-xl overflow-hidden ${showChecklist ? 'hidden' : ''}`}>
+            <div className={`w-full max-w-lg bg-white rounded-3xl shadow-xl overflow-hidden ${(showChecklist && lastInspection) ? 'hidden' : ''}`}>
                 {/* Header Status */}
                 <div className={`p-8 text-center ${isOperational ? 'bg-green-600' : 'bg-red-600'} text-white relative`}>
                     <button onClick={() => navigate(-1)} className="absolute left-4 top-4 p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors">
