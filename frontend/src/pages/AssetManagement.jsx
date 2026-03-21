@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Printer, Search, ChevronLeft, Filter, Edit } from 'lucide-react';
+import { Plus, Printer, Search, ChevronLeft, Filter, Edit, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 
 const AssetManagement = () => {
@@ -106,6 +106,19 @@ const AssetManagement = () => {
         printWindow.document.close();
     };
 
+    const handleDeleteAsset = async (id, serial_number) => {
+        const confirmDelete = window.confirm(`Are you absolutely sure you want to permanently delete asset ${serial_number}? This will also delete all inspection history for this asset. This action cannot be undone.`);
+        if (!confirmDelete) return;
+
+        try {
+            await api.delete(`/assets/${id}`);
+            fetchAssets(); // Refresh tree
+        } catch (error) {
+            console.error("Failed to delete asset", error);
+            alert(error.response?.data?.message || 'Failed to delete asset');
+        }
+    };
+
     const assetTypeLabel = type === 'sand-bucket' ? 'Fire Bucket' : type?.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 
     const getAssetTypeInfo = (asset) => {
@@ -193,12 +206,24 @@ const AssetManagement = () => {
                                     }`}>
                                     {asset.status}
                                 </span>
-                                <button
-                                    onClick={() => handlePrintQR(asset)}
-                                    title="Print QR"
-                                    className="text-gray-500 hover:text-white transition-colors">
-                                    <Printer className="w-5 h-5" />
-                                </button>
+                                <div className="flex items-center gap-3">
+                                    {userRole === 'admin' && (
+                                        <button
+                                            onClick={() => handleDeleteAsset(asset.id, asset.serial_number)}
+                                            title="Delete Asset"
+                                            className="text-gray-500 hover:text-red-500 transition-colors"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => handlePrintQR(asset)}
+                                        title="Print QR"
+                                        className="text-gray-500 hover:text-white transition-colors"
+                                    >
+                                        <Printer className="w-5 h-5" />
+                                    </button>
+                                </div>
                             </div>
 
                             <h3 className="text-xl font-bold mb-1">{asset.serial_number}</h3>
