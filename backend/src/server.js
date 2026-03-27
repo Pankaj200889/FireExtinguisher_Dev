@@ -35,17 +35,22 @@ async function startServer() {
 
         // Drop global unique constraint on serial_number to allow multi-tenant identically named serials
         try {
-            await sequelize.query('ALTER TABLE "Assets" DROP CONSTRAINT "Assets_serial_number_key";');
-            console.log('Successfully dropped Assets_serial_number_key constraint.');
+            const queryInterface = sequelize.getQueryInterface();
+            const indices = await queryInterface.showIndex('Assets');
+            for (const index of indices) {
+                // If it's a unique constraint explicitly on strictly serial_number, destroy it
+                if (
+                    index.name.includes('serial_number') && 
+                    !index.name.includes('company_id') &&
+                    index.unique === true
+                ) {
+                    await queryInterface.removeIndex('Assets', index.name);
+                    console.log(`Successfully dropped global constraint/index: ${index.name}`);
+                }
+            }
         } catch (e) {
-            console.log('Assets_serial_number_key not found. Skipping.');
+            console.log('Index dynamic sweep failed or passed natively.');
         }
-        try {
-            await sequelize.query('ALTER TABLE "Assets" DROP CONSTRAINT "Assets_serial_number_uk";');
-        } catch (e) {}
-        try {
-            await sequelize.query('ALTER TABLE "Assets" DROP CONSTRAINT "serial_number";');
-        } catch (e) {}
 
         // Sync models
         await sequelize.sync({ alter: true });

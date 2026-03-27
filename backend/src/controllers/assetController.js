@@ -59,7 +59,8 @@ exports.createAsset = async (req, res) => {
         res.status(201).json(asset);
     } catch (error) {
         console.error('Asset Implementation Error:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        // Expose full error to debug the global constraint issue
+        res.status(500).json({ message: 'Server error: ' + error.name, error: error.message });
     }
 };
 
