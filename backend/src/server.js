@@ -33,6 +33,20 @@ async function startServer() {
         await sequelize.authenticate();
         console.log('Database connection has been established successfully (PostgreSQL).');
 
+        // Drop global unique constraint on serial_number to allow multi-tenant identically named serials
+        try {
+            await sequelize.query('ALTER TABLE "Assets" DROP CONSTRAINT "Assets_serial_number_key";');
+            console.log('Successfully dropped Assets_serial_number_key constraint.');
+        } catch (e) {
+            console.log('Assets_serial_number_key not found. Skipping.');
+        }
+        try {
+            await sequelize.query('ALTER TABLE "Assets" DROP CONSTRAINT "Assets_serial_number_uk";');
+        } catch (e) {}
+        try {
+            await sequelize.query('ALTER TABLE "Assets" DROP CONSTRAINT "serial_number";');
+        } catch (e) {}
+
         // Sync models
         await sequelize.sync({ alter: true });
         console.log('Database synchronized.');
