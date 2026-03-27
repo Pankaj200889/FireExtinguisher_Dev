@@ -33,23 +33,34 @@ async function startServer() {
         await sequelize.authenticate();
         console.log('Database connection has been established successfully (PostgreSQL).');
 
-        // Drop global unique constraint on serial_number to allow multi-tenant identically named serials
+        // Deep Postgres Sweep: Drop any strictly serial_number unique constraint
         try {
-            const queryInterface = sequelize.getQueryInterface();
-            const indices = await queryInterface.showIndex('Assets');
-            for (const index of indices) {
-                // If it's a unique constraint explicitly on strictly serial_number, destroy it
-                if (
-                    index.name.includes('serial_number') && 
-                    !index.name.includes('company_id') &&
-                    index.unique === true
-                ) {
-                    await queryInterface.removeIndex('Assets', index.name);
-                    console.log(`Successfully dropped global constraint/index: ${index.name}`);
-                }
+            const [constraints] = await sequelize.query(`
+                SELECT conname 
+                FROM pg_constraint 
+                WHERE conrelid = '"Assets"'::regclass 
+                AND conname ILIKE '%serial_number%'
+                AND conname NOT ILIKE '%company_id%';
+            `);
+            for (let c of constraints) {
+                await sequelize.query(`ALTER TABLE "Assets" DROP CONSTRAINT IF EXISTS "${c.conname}" CASCADE;`);
+                console.log(`Aggressively shattered native constraint: ${c.conname}`);
+            }
+            
+            // Also scrub indexes directly since Postgres protects constraints with indexes
+            const [indexes] = await sequelize.query(`
+                SELECT indexname 
+                FROM pg_indexes 
+                WHERE tablename ILIKE '%asset%' 
+                AND indexname ILIKE '%serial_number%'
+                AND indexname NOT ILIKE '%company_id%';
+            `);
+            for (let idx of indexes) {
+                await sequelize.query(`DROP INDEX IF EXISTS "${idx.indexname}" CASCADE;`);
+                console.log(`Aggressively shattered native index: ${idx.indexname}`);
             }
         } catch (e) {
-            console.log('Index dynamic sweep failed or passed natively.');
+            console.log('Postgres raw constraint check failed or table not found yet.');
         }
 
         // Sync models
