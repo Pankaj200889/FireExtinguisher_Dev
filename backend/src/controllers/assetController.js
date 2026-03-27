@@ -212,11 +212,19 @@ exports.getAssetById = async (req, res) => {
 // Get asset by Serial Number (Public/Scan)
 exports.getAssetBySerial = async (req, res) => {
     try {
-        console.log(`[DEBUG] Fetching asset by serial: ${req.params.serial}`);
-        // Models already imported globally
+        const subdomain = req.headers['x-tenant-subdomain'];
+        console.log(`[DEBUG] Fetching asset by serial: ${req.params.serial} for Subdomain: ${subdomain}`);
+
+        // Extract company from subdomain securely
+        const { Company, User } = require('../models');
+        const company = await Company.findOne({ where: { subdomain: subdomain || 'fire' } });
+        
+        if (!company) {
+            return res.status(404).json({ message: 'Invalid tenant domain' });
+        }
 
         const asset = await Asset.findOne({
-            where: { serial_number: req.params.serial },
+            where: { serial_number: req.params.serial, company_id: company.id },
             include: [{
                 model: Inspection,
                 limit: 1,

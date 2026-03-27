@@ -5,7 +5,18 @@ const { Op } = require('sequelize');
 exports.checkLockStatus = async (req, res) => {
     try {
         const { serial } = req.params;
-        const asset = await Asset.findOne({ where: { serial_number: serial } });
+        const subdomain = req.headers['x-tenant-subdomain'];
+        const { Company } = require('../models');
+        
+        // Ensure proper global scoping via subdomain
+        const company = await Company.findOne({ where: { subdomain: subdomain || 'fire' } });
+        if (!company) {
+            return res.status(404).json({ message: 'Invalid tenant context for lock check' });
+        }
+
+        const asset = await Asset.findOne({ 
+            where: { serial_number: serial, company_id: company.id } 
+        });
 
         if (!asset) {
             return res.status(404).json({ message: 'Asset not found' });

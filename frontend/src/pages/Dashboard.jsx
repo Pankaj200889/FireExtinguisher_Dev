@@ -10,7 +10,10 @@ import {
     Users,
     Building2,
     LogOut,
-    QrCode
+    QrCode,
+    Headset,
+    Mail,
+    MessageCircle
 } from 'lucide-react';
 import api from '../lib/api';
 
@@ -477,6 +480,54 @@ const Dashboard = () => {
                     </>
                 )}
             </div>
+
+            {/* Support Information - Admin Only */}
+            {currentUser?.role === 'admin' && (
+                <div className="mt-12 mb-4">
+                    <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                        <span className="w-1 h-6 bg-brand-500 rounded-full"></span>
+                        Technical Support
+                    </h2>
+                    <div className="bg-slate-800/80 border border-brand-500/20 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+                        {/* Background glowing orb */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+                        
+                        <div className="z-10 flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                                <Headset className="w-6 h-6 text-brand-400" />
+                                <h3 className="text-lg font-bold text-white tracking-wide">Siddhi Industrial Solutions</h3>
+                            </div>
+                            <p className="text-gray-400 text-sm mb-6 max-w-xl leading-relaxed">
+                                Our dedicated support team is ready to assist you. Whether you need technical help, multi-tenant application guidance, or onboarding assistance, reach out directly.
+                            </p>
+                            
+                            <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-4 sm:gap-8">
+                                <a href="mailto:info@siddhiss.com" className="flex items-center gap-3 text-gray-300 hover:text-white transition-all hover:translate-x-1 group">
+                                    <div className="p-2.5 bg-slate-900 rounded-xl group-hover:bg-brand-500/20 transition-colors">
+                                        <Mail className="w-5 h-5 text-brand-400" />
+                                    </div>
+                                    <span className="font-medium text-[15px]">info@siddhiss.com</span>
+                                </a>
+                                <a href="https://wa.me/917881180567" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-gray-300 hover:text-white transition-all hover:translate-x-1 group">
+                                    <div className="p-2.5 bg-slate-900 rounded-xl group-hover:bg-green-500/20 transition-colors">
+                                        <MessageCircle className="w-5 h-5 text-green-400" />
+                                    </div>
+                                    <span className="font-medium text-[15px]">+91 788 118 0567 <span className="text-gray-500 text-sm ml-1">(WhatsApp)</span></span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div className="z-10 bg-slate-900/80 p-5 rounded-2xl border border-white/5 min-w-[220px] shrink-0 mt-4 md:mt-0 shadow-inner">
+                            <p className="text-xs text-brand-400 font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-brand-400 animate-pulse"></span>
+                                Target Time
+                            </p>
+                            <p className="text-3xl font-bold text-white mb-1">24-48 <span className="text-lg text-gray-400">Hrs</span></p>
+                            <p className="text-xs text-gray-400">Standard Resolution TAT</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
