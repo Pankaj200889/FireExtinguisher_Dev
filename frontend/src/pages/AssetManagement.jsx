@@ -208,13 +208,22 @@ const AssetManagement = () => {
                                 </span>
                                 <div className="flex items-center gap-3">
                                     {userRole === 'admin' && (
-                                        <button
-                                            onClick={() => handleDeleteAsset(asset.id, asset.serial_number)}
-                                            title="Delete Asset"
-                                            className="text-gray-500 hover:text-red-500 transition-colors"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
+                                        <>
+                                            <button
+                                                onClick={() => navigate(`/assets/${type}/edit/${encodeURIComponent(asset.serial_number)}`)}
+                                                title="Edit Asset Details"
+                                                className="text-gray-500 hover:text-blue-500 transition-colors"
+                                            >
+                                                <Edit className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteAsset(asset.id, asset.serial_number)}
+                                                title="Delete Asset"
+                                                className="text-gray-500 hover:text-red-500 transition-colors"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        </>
                                     )}
                                     <button
                                         onClick={() => handlePrintQR(asset)}

@@ -110,6 +110,9 @@ const Asset = sequelize.define('Asset', {
         {
             unique: true,
             fields: ['company_id', 'serial_number'],
+            where: {
+                deletedAt: null
+            }
         },
     ],
 });

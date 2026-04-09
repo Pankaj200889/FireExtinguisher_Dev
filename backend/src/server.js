@@ -39,8 +39,7 @@ async function startServer() {
                 SELECT conname 
                 FROM pg_constraint 
                 WHERE conrelid = '"Assets"'::regclass 
-                AND conname ILIKE '%serial_number%'
-                AND conname NOT ILIKE '%company_id%';
+                AND conname ILIKE '%serial_number%';
             `);
             for (let c of constraints) {
                 await sequelize.query(`ALTER TABLE "Assets" DROP CONSTRAINT IF EXISTS "${c.conname}" CASCADE;`);
@@ -52,8 +51,7 @@ async function startServer() {
                 SELECT indexname 
                 FROM pg_indexes 
                 WHERE tablename ILIKE '%asset%' 
-                AND indexname ILIKE '%serial_number%'
-                AND indexname NOT ILIKE '%company_id%';
+                AND indexname ILIKE '%serial_number%';
             `);
             for (let idx of indexes) {
                 await sequelize.query(`DROP INDEX IF EXISTS "${idx.indexname}" CASCADE;`);
