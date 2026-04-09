@@ -23,6 +23,7 @@ const InspectionForm = () => {
     const [findings, setFindings] = useState({});
     const [remarks, setRemarks] = useState('');
     const [photos, setPhotos] = useState([null, null]);
+    const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
     // Camera State
     const [cameraOpen, setCameraOpen] = useState(false);
@@ -114,18 +115,22 @@ const InspectionForm = () => {
 
         // Close camera immediately for better UX
         setCameraOpen(false);
+        const indexToUpdate = currentPhotoIndex;
+        setCurrentPhotoIndex(null);
 
         // Create FormData
         const formData = new FormData();
         formData.append('image', file);
 
+        setUploadingPhotos(true);
         try {
-            // Show loading state for specific photo?
-            // Simple approach: optimistically show local preview, then replace with server URL
+            // Optimistically show local preview
             const previewUrl = URL.createObjectURL(file);
-            const newPhotos = [...photos];
-            newPhotos[currentPhotoIndex] = previewUrl;
-            setPhotos(newPhotos);
+            setPhotos(prev => {
+                const next = [...prev];
+                next[indexToUpdate] = previewUrl;
+                return next;
+            });
 
             // Upload
             const res = await api.post('/upload', formData, {
@@ -133,19 +138,25 @@ const InspectionForm = () => {
             });
 
             // Update with real server URL
-            const serverUrl = res.data.url; // e.g., /uploads/filename.jpg
-            newPhotos[currentPhotoIndex] = serverUrl;
-            setPhotos(newPhotos);
+            const serverUrl = res.data.url; 
+            
+            setPhotos(prev => {
+                const next = [...prev];
+                next[indexToUpdate] = serverUrl;
+                return next;
+            });
 
         } catch (error) {
             console.error("Upload failed", error);
             alert("Failed to upload photo");
             // Revert photo on error
-            const newPhotos = [...photos];
-            newPhotos[currentPhotoIndex] = null;
-            setPhotos(newPhotos);
+            setPhotos(prev => {
+                const next = [...prev];
+                next[indexToUpdate] = null;
+                return next;
+            });
         } finally {
-            setCurrentPhotoIndex(null);
+            setUploadingPhotos(false);
         }
     };
 
@@ -619,9 +630,9 @@ const InspectionForm = () => {
                 </div>
 
                 <div className="pt-6">
-                    <button type="submit" disabled={submitting} className="w-full py-4 bg-brand-600 hover:bg-brand-500 rounded-xl font-bold text-lg shadow-xl shadow-brand-500/20 transition-all flex items-center justify-center gap-2">
+                    <button type="submit" disabled={submitting || uploadingPhotos} className="w-full py-4 bg-brand-600 hover:bg-brand-500 rounded-xl font-bold text-lg shadow-xl shadow-brand-500/20 transition-all flex items-center justify-center gap-2">
                         <Save className="w-5 h-5" />
-                        {submitting ? 'Submitting...' : 'Submit Inspection'}
+                        {submitting ? 'Submitting...' : uploadingPhotos ? 'Uploading Photos...' : 'Submit Inspection'}
                     </button>
                     <p className="text-center text-xs text-gray-500 mt-4">
                         By submitting, you confirm the accuracy of this inspection.
