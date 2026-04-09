@@ -51,6 +51,17 @@ exports.login = async (req, res) => {
             if (!company || !company.is_active) {
                 return res.status(403).json({ message: 'Account suspended. Please contact Siddhi Industrial Solutions.' });
             }
+
+            // SECURITY: Cross-tenant login prevention
+            const subdomain = req.headers['x-tenant-subdomain'];
+            // If they are logging in from a real tenant subdomain, strictly enforce it against their assigned company!
+            // 'fire' is the superadmin/master domain, but tenants shouldn't log in there unless assigned to it.
+            if (subdomain && company.subdomain && company.subdomain !== subdomain) {
+                // To prevent infinite confusion, tell them exactly where they belong
+                return res.status(403).json({ 
+                    message: `Access Denied: Your account belongs to "${company.name}". Please log in at ${company.subdomain}.siddhiss.com` 
+                });
+            }
         }
 
         // Validate password
