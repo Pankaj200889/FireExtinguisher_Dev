@@ -12,6 +12,115 @@ const ComplianceReports = () => {
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedType, setSelectedType] = useState('All');
+    const [selectedInterval, setSelectedInterval] = useState('All');
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+
+    const formatDate = (d) => {
+        if (!d) return '-';
+        return new Date(d).toLocaleDateString('en-GB');
+    };
+
+    const [activeTab, setActiveTab] = useState('compliance'); // 'compliance' or 'audit'
+
+    // Flatten and parse audit logs from all inspections across assets
+    const auditLogs = React.useMemo(() => {
+        const logs = [];
+        extinguishers.forEach(ext => {
+            const inspections = ext.inspections || ext.Inspections || [];
+            inspections.forEach(ins => {
+                logs.push({
+                    id: ins.id,
+                    date: ins.inspection_date || ins.createdAt,
+                    serial_number: ext.serial_number,
+                    type: ext.type,
+                    location: ext.location,
+                    inspector: ins.User?.name || ins.inspector || 'System',
+                    status: ins.status,
+                    remarks: ins.findings?.remarks || '-',
+                    inspection_type: ins.findings?.inspection_type || 'Routine',
+                    photos: ins.evidence_photos || []
+                });
+            });
+        });
+        // Sort by date descending
+        return logs.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }, [extinguishers]);
+
+    const filteredAuditLogs = React.useMemo(() => {
+        return auditLogs.filter(log => {
+            const logDate = new Date(log.date);
+            if (startDate && logDate < new Date(startDate + "T00:00:00")) return false;
+            if (endDate && logDate > new Date(endDate + "T23:59:59")) return false;
+            
+            const matchesSearch = 
+                (log.serial_number && log.serial_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (log.inspector && log.inspector.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (log.remarks && log.remarks.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (log.location && log.location.toLowerCase().includes(searchTerm.toLowerCase()));
+            const matchesInterval = selectedInterval === 'All' || log.inspection_type === selectedInterval;
+            const matchesType = selectedType === 'All' || log.type === selectedType;
+            return matchesSearch && matchesInterval && matchesType;
+        });
+    }, [auditLogs, searchTerm, selectedInterval, selectedType, startDate, endDate]);
+
+    const generateAuditTrailCSV = () => {
+        const headers = [
+            "Date & Time", "Asset Number", "Type", "Location", 
+            "Event/Interval", "Inspector", "Status", "Remarks"
+        ];
+        
+        const rows = filteredAuditLogs.map(log => [
+            new Date(log.date).toLocaleString('en-GB'),
+            log.serial_number,
+            log.type,
+            log.location,
+            log.inspection_type,
+            log.inspector,
+            log.status,
+            log.remarks
+        ].map(f => `"${String(f || '').replace(/"/g, '""')}"`).join(','));
+
+        const csvContent = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Asset_Audit_Trail_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+    };
+
+    const getUIIntervalDisplay = (ext, type, months) => {
+        const inspections = ext.inspections || ext.Inspections || [];
+        const match = inspections.find(ins => ins.findings?.inspection_type === type);
+        
+        let baseDate = null;
+        if (match) {
+            baseDate = new Date(match.inspection_date || match.createdAt);
+        } else {
+            baseDate = ext.installation_date || ext.createdAt ? new Date(ext.installation_date || ext.createdAt) : null;
+        }
+        
+        if (!baseDate) return '-';
+        
+        const dueDate = new Date(baseDate);
+        if (type === 'Annual') {
+            dueDate.setFullYear(dueDate.getFullYear() + 1);
+        } else {
+            dueDate.setMonth(dueDate.getMonth() + months);
+        }
+        
+        return (
+            <div className="flex flex-col gap-0.5">
+                <span className="text-gray-200 font-medium">
+                    {match ? `Last: ${formatDate(match.inspection_date || match.createdAt)}` : 'Last: -'}
+                </span>
+                <span className="text-green-400 font-bold text-[10px]">
+                    Due: {formatDate(dueDate)}
+                </span>
+            </div>
+        );
+    };
 
     useEffect(() => {
         loadData();
@@ -44,29 +153,65 @@ const ComplianceReports = () => {
         </div>
     );
 
-    const filteredAssets = extinguishers.filter(ext => {
-        const matchesSearch = (ext.serial_number && ext.serial_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (ext.location && ext.location.toLowerCase().includes(searchTerm.toLowerCase()));
-        const matchesType = selectedType === 'All' || ext.type === selectedType;
-        return matchesSearch && matchesType;
-    });
+    const filteredAssets = React.useMemo(() => {
+        return extinguishers.map(ext => {
+            const rawIns = ext.inspections || ext.Inspections || [];
+            const filteredIns = rawIns.filter(ins => {
+                const date = new Date(ins.inspection_date || ins.createdAt);
+                if (startDate && date < new Date(startDate + "T00:00:00")) return false;
+                if (endDate && date > new Date(endDate + "T23:59:59")) return false;
+                return true;
+            });
+            return { ...ext, inspections: filteredIns, Inspections: filteredIns };
+        }).filter(ext => {
+            const matchesSearch = (ext.serial_number && ext.serial_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (ext.location && ext.location.toLowerCase().includes(searchTerm.toLowerCase()));
+            const matchesType = selectedType === 'All' || ext.type === selectedType;
+            
+            const inspections = ext.inspections || [];
+            const matchesInterval = selectedInterval === 'All' || 
+                inspections.some(ins => ins.findings?.inspection_type === selectedInterval);
+                
+            // If date range filter is active, only show assets that had inspections in that range
+            const matchesDate = (!startDate && !endDate) || inspections.length > 0;
+            
+            return matchesSearch && matchesType && matchesInterval && matchesDate;
+        });
+    }, [extinguishers, searchTerm, selectedType, selectedInterval, startDate, endDate]);
 
     const generateAnnexHPDF = async () => {
-        const getBase64 = async (url) => {
-            if (!url) return null;
-            try {
-                const fullUrl = url.startsWith('http') ? url : `http://localhost:5000${url}`;
-                const res = await fetch(fullUrl);
-                const blob = await res.blob();
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.readAsDataURL(blob);
-                });
-            } catch (e) {
-                console.error("Image load failed", e);
-                return null;
-            }
+        const getBase64 = (url) => {
+            if (!url) return Promise.resolve(null);
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                
+                // Construct proper absolute URL
+                const base = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+                const cleanBase = base.replace(/\/$/, '');
+                const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+                const fullUrl = url.startsWith('http') ? url : `${cleanBase}${cleanUrl}`;
+                
+                img.src = fullUrl;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    try {
+                        const dataURL = canvas.toDataURL('image/jpeg');
+                        resolve(dataURL);
+                    } catch (e) {
+                        console.error("Canvas conversion failed:", e);
+                        resolve(null);
+                    }
+                };
+                img.onerror = (err) => {
+                    console.error("Failed to load image for base64:", err);
+                    resolve(null);
+                };
+            });
         };
 
         const doc = new jsPDF({ orientation: 'landscape' });
@@ -213,9 +358,9 @@ const ComplianceReports = () => {
                     remarks: latest?.findings?.remarks || '-',
                     evidence: '',
 
-                    monthly: inspections.find(ins => ins.inspection_type === 'Monthly') ? formatDate(inspections.find(ins => ins.inspection_type === 'Monthly').inspection_date) : '-',
-                    quarterly: inspections.find(ins => ins.inspection_type === 'Quarterly') ? formatDate(inspections.find(ins => ins.inspection_type === 'Quarterly').inspection_date) : '-',
-                    annual: inspections.find(ins => ins.inspection_type === 'Annual') ? formatDate(inspections.find(ins => ins.inspection_type === 'Annual').inspection_date) : '-',
+                    monthly: inspections.find(ins => ins.findings?.inspection_type === 'Monthly') ? formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Monthly').inspection_date) : '-',
+                    quarterly: inspections.find(ins => ins.findings?.inspection_type === 'Quarterly') ? formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Quarterly').inspection_date) : '-',
+                    annual: inspections.find(ins => ins.findings?.inspection_type === 'Annual') ? formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Annual').inspection_date) : '-',
 
                     last_hydro: formatDate(ext.last_hydro_test_date),
                     next_hydro: formatDate(ext.next_hydro_test_due),
@@ -279,7 +424,9 @@ const ComplianceReports = () => {
         const headers = [
             "Sl No", "Asset Number", "Type", "Capacity", "Year", "Make", "Location",
             "Last Hydro Test", "Next Hydro Due", "Last Refilled", "Next Refill Due",
-            "Monthly Insp", "Quarterly Insp", "Annual Insp",
+            "Monthly Insp", "Next Monthly Due", 
+            "Quarterly Insp", "Next Quarterly Due", 
+            "Annual Insp", "Next Annual Due",
             "Status", "Remarks",
             "Inspected By", "Inspected On", "Device ID"
         ];
@@ -290,6 +437,24 @@ const ComplianceReports = () => {
             const specs = ext.specifications || {};
 
             const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB') : '-';
+
+            const getNextDue = (type, months) => {
+                const match = inspections.find(ins => ins.findings?.inspection_type === type);
+                let baseDate = null;
+                if (match) {
+                    baseDate = new Date(match.inspection_date || match.createdAt);
+                } else {
+                    baseDate = ext.installation_date || ext.createdAt ? new Date(ext.installation_date || ext.createdAt) : null;
+                }
+                if (!baseDate) return '-';
+                const d = new Date(baseDate);
+                if (type === 'Annual') {
+                    d.setFullYear(d.getFullYear() + 1);
+                } else {
+                    d.setMonth(d.getMonth() + months);
+                }
+                return formatDate(d);
+            };
 
             // Determine Inspector Name
             let inspectorName = 'System';
@@ -314,9 +479,12 @@ const ComplianceReports = () => {
                 formatDate(ext.next_hydro_test_due),
                 formatDate(ext.last_refilled_date),
                 formatDate(ext.next_refill_due),
-                inspections.find(ins => ins.inspection_type === 'Monthly') ? formatDate(inspections.find(ins => ins.inspection_type === 'Monthly').inspection_date) : '-',
-                inspections.find(ins => ins.inspection_type === 'Quarterly') ? formatDate(inspections.find(ins => ins.inspection_type === 'Quarterly').inspection_date) : '-',
-                inspections.find(ins => ins.inspection_type === 'Annual') ? formatDate(inspections.find(ins => ins.inspection_type === 'Annual').inspection_date) : '-',
+                inspections.find(ins => ins.findings?.inspection_type === 'Monthly') ? formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Monthly').inspection_date) : '-',
+                getNextDue('Monthly', 1),
+                inspections.find(ins => ins.findings?.inspection_type === 'Quarterly') ? formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Quarterly').inspection_date) : '-',
+                getNextDue('Quarterly', 3),
+                inspections.find(ins => ins.findings?.inspection_type === 'Annual') ? formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Annual').inspection_date) : '-',
+                getNextDue('Annual', 12),
                 ext.status,
                 latest?.findings?.remarks || '-',
                 inspectorName,
@@ -365,7 +533,7 @@ const ComplianceReports = () => {
     return (
         <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 pb-20">
             {/* ... header ... */}
-            <header className="flex items-center gap-4 mb-8">
+            <header className="flex items-center gap-4 mb-6">
                 <button onClick={() => navigate('/dashboard')} className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all">
                     <ArrowLeft className="w-6 h-6" />
                 </button>
@@ -375,10 +543,26 @@ const ComplianceReports = () => {
                 </div>
             </header>
 
+            {/* Tabs */}
+            <div className="flex gap-4 border-b border-gray-800 mb-8">
+                <button
+                    onClick={() => setActiveTab('compliance')}
+                    className={`pb-4 px-2 font-bold text-sm transition-all border-b-2 ${activeTab === 'compliance' ? 'border-brand-500 text-brand-400' : 'border-transparent text-gray-400 hover:text-white'}`}
+                >
+                    Compliance Status
+                </button>
+                <button
+                    onClick={() => setActiveTab('audit')}
+                    className={`pb-4 px-2 font-bold text-sm transition-all border-b-2 ${activeTab === 'audit' ? 'border-brand-500 text-brand-400' : 'border-transparent text-gray-400 hover:text-white'}`}
+                >
+                    Audit Trail & History
+                </button>
+            </div>
+
             {/* ... filters ... */}
-            <div className="bg-slate-800/50 rounded-2xl p-6 border border-white/5 mb-8">
-                <div className="flex flex-col lg:flex-row gap-6 justify-between items-end">
-                    <div className="w-full lg:w-1/3">
+            <div className="bg-slate-800/50 rounded-2xl p-6 border border-white/5 mb-8 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                    <div>
                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Filter Type</label>
                         <select
                             value={selectedType}
@@ -393,7 +577,41 @@ const ComplianceReports = () => {
                         </select>
                     </div>
 
-                    <div className="w-full lg:w-1/3">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Inspection Interval</label>
+                        <select
+                            value={selectedInterval}
+                            onChange={(e) => setSelectedInterval(e.target.value)}
+                            className="w-full bg-slate-900 border border-gray-700 rounded-xl px-4 py-3 font-bold text-white outline-none focus:border-brand-500 transition-all cursor-pointer"
+                        >
+                            <option value="All">All Intervals</option>
+                            <option value="Monthly">Monthly Inspections</option>
+                            <option value="Quarterly">Quarterly Inspections</option>
+                            <option value="Annual">Annual Maintenance</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Start Date</label>
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="w-full bg-slate-900 border border-gray-700 rounded-xl px-4 py-3 font-bold text-white outline-none focus:border-brand-500 transition-all cursor-pointer"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">End Date</label>
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="w-full bg-slate-900 border border-gray-700 rounded-xl px-4 py-3 font-bold text-white outline-none focus:border-brand-500 transition-all cursor-pointer"
+                        />
+                    </div>
+
+                    <div>
                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Search Assets</label>
                         <div className="relative">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -406,77 +624,193 @@ const ComplianceReports = () => {
                             />
                         </div>
                     </div>
+                </div>
 
-                    <div className="flex flex-wrap gap-2 w-full lg:w-auto justify-end">
-                        <button onClick={generateCombinedCSV} className="px-4 py-3 rounded-xl border border-gray-600 font-bold text-gray-300 hover:bg-slate-700 transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">
-                            <FileText className="w-4 h-4" /> Master CSV
+                <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-gray-800 gap-4">
+                    {startDate || endDate || searchTerm || selectedType !== 'All' || selectedInterval !== 'All' ? (
+                        <button
+                            onClick={() => {
+                                setStartDate("");
+                                setEndDate("");
+                                setSearchTerm("");
+                                setSelectedType("All");
+                                setSelectedInterval("All");
+                            }}
+                            className="text-xs font-bold text-red-400 hover:text-red-300 transition-colors"
+                        >
+                            Clear All Filters
                         </button>
-                        <button onClick={generateDetailedCSV} className="px-4 py-3 rounded-xl border border-brand-500/50 bg-brand-500/10 font-bold text-brand-400 hover:bg-brand-500/20 transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">
-                            <FileText className="w-4 h-4" /> {selectedType === 'All' ? 'Detailed CSV' : `${selectedType} CSV`}
-                        </button>
-                        <button onClick={generateAnnexHPDF} className="px-4 py-3 rounded-xl bg-brand-600 font-bold text-white hover:bg-brand-500 shadow-lg shadow-brand-500/20 transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">
-                            <Download className="w-4 h-4" /> PDF Report
-                        </button>
+                    ) : <div />}
+
+                    <div className="flex flex-wrap gap-2 justify-end w-full sm:w-auto">
+                        {activeTab === 'compliance' ? (
+                            <>
+                                <button onClick={generateCombinedCSV} className="px-4 py-3 rounded-xl border border-gray-600 font-bold text-gray-300 hover:bg-slate-700 transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">
+                                    <FileText className="w-4 h-4" /> Master CSV
+                                </button>
+                                <button onClick={generateDetailedCSV} className="px-4 py-3 rounded-xl border border-brand-500/50 bg-brand-500/10 font-bold text-brand-400 hover:bg-brand-500/20 transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">
+                                    <FileText className="w-4 h-4" /> {selectedType === 'All' ? 'Detailed CSV' : `${selectedType} CSV`}
+                                </button>
+                                <button onClick={generateAnnexHPDF} className="px-4 py-3 rounded-xl bg-brand-600 font-bold text-white hover:bg-brand-500 shadow-lg shadow-brand-500/20 transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">
+                                    <Download className="w-4 h-4" /> PDF Report
+                                </button>
+                            </>
+                        ) : (
+                            <button onClick={generateAuditTrailCSV} className="px-4 py-3 rounded-xl bg-brand-600 font-bold text-white hover:bg-brand-500 shadow-lg shadow-brand-500/20 transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">
+                                <FileText className="w-4 h-4" /> Download Audit CSV
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
 
             <div className="bg-slate-800/50 rounded-2xl p-6 border border-white/5">
                 <h3 className="text-lg font-bold text-gray-200 mb-6 flex items-center gap-2">
-                    <Filter className="w-5 h-5 text-brand-500" /> Report Preview ({filteredAssets.length})
+                    <Filter className="w-5 h-5 text-brand-500" /> 
+                    {activeTab === 'compliance' 
+                        ? `Report Preview (${filteredAssets.length})` 
+                        : `Audit Log Trail (${filteredAuditLogs.length})`}
                 </h3>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="border-b border-gray-700">
-                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Photo</th>
-                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Asset No</th>
-                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
-                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Location</th>
-                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Last Inspection</th>
-                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-700/50">
-                            {filteredAssets.map(ext => {
-                                const inspections = ext.inspections || ext.Inspections || [];
-                                const latestInspection = inspections.length > 0 ? inspections[0] : null;
-                                const thumb = latestInspection?.evidence_photos?.[0];
-
-                                return (
-                                    <tr key={ext.id} className="hover:bg-white/5 transition-colors">
-                                        <td className="py-4 px-4">
-                                            {thumb ? (
-                                                <img
-                                                    src={getImgSrc(thumb)}
-                                                    alt="Asset"
-                                                    className="w-12 h-12 rounded object-cover border border-white/10"
-                                                />
-                                            ) : (
-                                                <div className="w-12 h-12 rounded bg-white/5 flex items-center justify-center text-xs text-gray-600">No Img</div>
-                                            )}
-                                        </td>
-                                        <td className="py-4 px-4 font-bold text-white">{ext.serial_number}</td>
-                                        <td className="py-4 px-4 font-medium text-gray-300">{ext.type}</td>
-                                        <td className="py-4 px-4 font-medium text-gray-400">{ext.location}</td>
-                                        <td className="py-4 px-4 font-medium text-gray-400">
-                                            {ext.last_inspection_date ? new Date(ext.last_inspection_date).toLocaleDateString() : '-'}
-                                        </td>
-                                        <td className="py-4 px-4 text-right">
-                                            <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${ext.status === 'Operational' ? 'bg-green-500/10 text-green-400' :
-                                                ext.status === 'Maintenance Required' ? 'bg-yellow-500/10 text-yellow-400' : 'bg-slate-700 text-gray-400'
-                                                }`}>
-                                                {ext.status || 'Pending'}
-                                            </span>
-                                        </td>
+                    {activeTab === 'compliance' ? (
+                        <>
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="border-b border-gray-700">
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Photo</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Asset No</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Location</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Monthly</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Quarterly</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Annual</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Last Inspection</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Status</th>
                                     </tr>
-                                )
-                            })}
-                        </tbody>
-                    </table>
-                    {filteredAssets.length === 0 && (
-                        <div className="text-center py-10 text-gray-500 font-medium">No filtered assets found.</div>
+                                </thead>
+                                <tbody className="divide-y divide-gray-700/50">
+                                    {filteredAssets.map(ext => {
+                                        const inspections = ext.inspections || ext.Inspections || [];
+                                        const latestInspection = inspections.length > 0 ? inspections[0] : null;
+                                        const thumb = latestInspection?.evidence_photos?.[0];
+
+                                        return (
+                                            <tr key={ext.id} className="hover:bg-white/5 transition-colors">
+                                                <td className="py-4 px-4">
+                                                    {thumb ? (
+                                                        <img
+                                                            src={getImgSrc(thumb)}
+                                                            alt="Asset"
+                                                            className="w-12 h-12 rounded object-cover border border-white/10"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-12 h-12 rounded bg-white/5 flex items-center justify-center text-xs text-gray-600">No Img</div>
+                                                    )}
+                                                </td>
+                                                <td className="py-4 px-4 font-bold text-white">{ext.serial_number}</td>
+                                                <td className="py-4 px-4 font-medium text-gray-300">{ext.type}</td>
+                                                <td className="py-4 px-4 font-medium text-gray-400">{ext.location}</td>
+                                                
+                                                <td className="py-4 px-4 text-xs font-medium text-gray-400">
+                                                    {getUIIntervalDisplay(ext, 'Monthly', 1)}
+                                                </td>
+                                                <td className="py-4 px-4 text-xs font-medium text-gray-400">
+                                                    {getUIIntervalDisplay(ext, 'Quarterly', 3)}
+                                                </td>
+                                                <td className="py-4 px-4 text-xs font-medium text-gray-400">
+                                                    {getUIIntervalDisplay(ext, 'Annual', 12)}
+                                                </td>
+
+                                                <td className="py-4 px-4 font-medium text-gray-400">
+                                                    {ext.last_inspection_date ? formatDate(ext.last_inspection_date) : '-'}
+                                                </td>
+                                                <td className="py-4 px-4 text-right">
+                                                    <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${ext.status === 'Operational' ? 'bg-green-500/10 text-green-400' :
+                                                        ext.status === 'Maintenance Required' ? 'bg-yellow-500/10 text-yellow-400' : 'bg-slate-700 text-gray-400'
+                                                        }`}>
+                                                        {ext.status || 'Pending'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
+                            {filteredAssets.length === 0 && (
+                                <div className="text-center py-10 text-gray-500 font-medium">No filtered assets found.</div>
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="border-b border-gray-700">
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Date & Time</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Asset No</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Event</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Inspector</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Remarks</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Photo</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-700/50">
+                                    {filteredAuditLogs.map(log => (
+                                        <tr key={log.id} className="hover:bg-white/5 transition-colors">
+                                            <td className="py-4 px-4 text-xs font-medium text-gray-300">
+                                                {new Date(log.date).toLocaleString('en-GB')}
+                                            </td>
+                                            <td className="py-4 px-4 text-xs font-bold text-white">
+                                                {log.serial_number}
+                                            </td>
+                                            <td className="py-4 px-4 text-xs font-medium text-gray-400">
+                                                {log.type}
+                                            </td>
+                                            <td className="py-4 px-4 text-xs font-medium">
+                                                <span className="px-2 py-0.5 rounded bg-slate-700 text-gray-300 text-[10px] font-bold">
+                                                    {log.inspection_type}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-4 text-xs font-medium text-gray-300">
+                                                {log.inspector}
+                                            </td>
+                                            <td className="py-4 px-4 text-xs font-medium text-gray-400 max-w-[200px] truncate italic">
+                                                "{log.remarks}"
+                                            </td>
+                                            <td className="py-4 px-4 text-xs">
+                                                {log.photos?.[0] ? (
+                                                    <a 
+                                                        href={getImgSrc(log.photos[0])}
+                                                        target="_blank" 
+                                                        rel="noreferrer"
+                                                    >
+                                                        <img 
+                                                            src={getImgSrc(log.photos[0])}
+                                                            alt="Evidence" 
+                                                            className="w-10 h-10 rounded object-cover border border-white/10 hover:border-brand-500 transition-all"
+                                                        />
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-gray-600 text-[10px]">No Photo</span>
+                                                )}
+                                            </td>
+                                            <td className="py-4 px-4 text-right">
+                                                <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${log.status === 'Pass' || log.status === 'Operational' ? 'bg-green-500/10 text-green-400' :
+                                                    log.status === 'Fail' || log.status === 'Maintenance' ? 'bg-red-500/10 text-red-400' : 'bg-slate-700 text-gray-400'
+                                                    }`}>
+                                                    {log.status || 'Pending'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {filteredAuditLogs.length === 0 && (
+                                <div className="text-center py-10 text-gray-500 font-medium">No audit log entries found.</div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>

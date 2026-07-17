@@ -54,9 +54,12 @@ exports.login = async (req, res) => {
 
             // SECURITY: Cross-tenant login prevention
             const subdomain = req.headers['x-tenant-subdomain'];
+            const requestHost = req.get('host') || '';
+            const isStagingOrLocal = requestHost.includes('vercel.app') || requestHost.includes('localhost') || requestHost.includes('127.0.0.1');
+
             // If they are logging in from a real tenant subdomain, strictly enforce it against their assigned company!
-            // 'fire' is the superadmin/master domain, but tenants shouldn't log in there unless assigned to it.
-            if (subdomain && company.subdomain && company.subdomain !== subdomain) {
+            // We bypass this for staging (Vercel previews) and local development.
+            if (!isStagingOrLocal && subdomain && company.subdomain && company.subdomain !== subdomain) {
                 // To prevent infinite confusion, tell them exactly where they belong
                 return res.status(403).json({ 
                     message: `Access Denied: Your account belongs to "${company.name}". Please log in at ${company.subdomain}.siddhiss.com` 
