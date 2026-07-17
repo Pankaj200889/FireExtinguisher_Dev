@@ -12,6 +12,12 @@ const ComplianceReports = () => {
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedType, setSelectedType] = useState('All');
+    const [selectedInterval, setSelectedInterval] = useState('All');
+
+    const formatDate = (d) => {
+        if (!d) return '-';
+        return new Date(d).toLocaleDateString('en-GB');
+    };
 
     useEffect(() => {
         loadData();
@@ -48,7 +54,12 @@ const ComplianceReports = () => {
         const matchesSearch = (ext.serial_number && ext.serial_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (ext.location && ext.location.toLowerCase().includes(searchTerm.toLowerCase()));
         const matchesType = selectedType === 'All' || ext.type === selectedType;
-        return matchesSearch && matchesType;
+        
+        const inspections = ext.inspections || ext.Inspections || [];
+        const matchesInterval = selectedInterval === 'All' || 
+            inspections.some(ins => ins.findings?.inspection_type === selectedInterval);
+            
+        return matchesSearch && matchesType && matchesInterval;
     });
 
     const generateAnnexHPDF = async () => {
@@ -213,9 +224,9 @@ const ComplianceReports = () => {
                     remarks: latest?.findings?.remarks || '-',
                     evidence: '',
 
-                    monthly: inspections.find(ins => ins.inspection_type === 'Monthly') ? formatDate(inspections.find(ins => ins.inspection_type === 'Monthly').inspection_date) : '-',
-                    quarterly: inspections.find(ins => ins.inspection_type === 'Quarterly') ? formatDate(inspections.find(ins => ins.inspection_type === 'Quarterly').inspection_date) : '-',
-                    annual: inspections.find(ins => ins.inspection_type === 'Annual') ? formatDate(inspections.find(ins => ins.inspection_type === 'Annual').inspection_date) : '-',
+                    monthly: inspections.find(ins => ins.findings?.inspection_type === 'Monthly') ? formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Monthly').inspection_date) : '-',
+                    quarterly: inspections.find(ins => ins.findings?.inspection_type === 'Quarterly') ? formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Quarterly').inspection_date) : '-',
+                    annual: inspections.find(ins => ins.findings?.inspection_type === 'Annual') ? formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Annual').inspection_date) : '-',
 
                     last_hydro: formatDate(ext.last_hydro_test_date),
                     next_hydro: formatDate(ext.next_hydro_test_due),
@@ -314,9 +325,9 @@ const ComplianceReports = () => {
                 formatDate(ext.next_hydro_test_due),
                 formatDate(ext.last_refilled_date),
                 formatDate(ext.next_refill_due),
-                inspections.find(ins => ins.inspection_type === 'Monthly') ? formatDate(inspections.find(ins => ins.inspection_type === 'Monthly').inspection_date) : '-',
-                inspections.find(ins => ins.inspection_type === 'Quarterly') ? formatDate(inspections.find(ins => ins.inspection_type === 'Quarterly').inspection_date) : '-',
-                inspections.find(ins => ins.inspection_type === 'Annual') ? formatDate(inspections.find(ins => ins.inspection_type === 'Annual').inspection_date) : '-',
+                inspections.find(ins => ins.findings?.inspection_type === 'Monthly') ? formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Monthly').inspection_date) : '-',
+                inspections.find(ins => ins.findings?.inspection_type === 'Quarterly') ? formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Quarterly').inspection_date) : '-',
+                inspections.find(ins => ins.findings?.inspection_type === 'Annual') ? formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Annual').inspection_date) : '-',
                 ext.status,
                 latest?.findings?.remarks || '-',
                 inspectorName,
@@ -378,7 +389,7 @@ const ComplianceReports = () => {
             {/* ... filters ... */}
             <div className="bg-slate-800/50 rounded-2xl p-6 border border-white/5 mb-8">
                 <div className="flex flex-col lg:flex-row gap-6 justify-between items-end">
-                    <div className="w-full lg:w-1/3">
+                    <div className="w-full lg:w-1/4">
                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Filter Type</label>
                         <select
                             value={selectedType}
@@ -393,7 +404,21 @@ const ComplianceReports = () => {
                         </select>
                     </div>
 
-                    <div className="w-full lg:w-1/3">
+                    <div className="w-full lg:w-1/4">
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Inspection Interval</label>
+                        <select
+                            value={selectedInterval}
+                            onChange={(e) => setSelectedInterval(e.target.value)}
+                            className="w-full bg-slate-900 border border-gray-700 rounded-xl px-4 py-3 font-bold text-white outline-none focus:border-brand-500 transition-all cursor-pointer"
+                        >
+                            <option value="All">All Intervals</option>
+                            <option value="Monthly">Monthly Inspections</option>
+                            <option value="Quarterly">Quarterly Inspections</option>
+                            <option value="Annual">Annual Maintenance</option>
+                        </select>
+                    </div>
+
+                    <div className="w-full lg:w-1/4">
                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Search Assets</label>
                         <div className="relative">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -434,6 +459,9 @@ const ComplianceReports = () => {
                                 <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Asset No</th>
                                 <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
                                 <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Location</th>
+                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Monthly</th>
+                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Quarterly</th>
+                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Annual</th>
                                 <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Last Inspection</th>
                                 <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Status</th>
                             </tr>
@@ -449,7 +477,7 @@ const ComplianceReports = () => {
                                         <td className="py-4 px-4">
                                             {thumb ? (
                                                 <img
-                                                    src={getImgSrc(thumb)}
+                                                    src={thumb.startsWith('http') || thumb.startsWith('/uploads') ? `http://localhost:5000${thumb}` : thumb}
                                                     alt="Asset"
                                                     className="w-12 h-12 rounded object-cover border border-white/10"
                                                 />
@@ -460,8 +488,25 @@ const ComplianceReports = () => {
                                         <td className="py-4 px-4 font-bold text-white">{ext.serial_number}</td>
                                         <td className="py-4 px-4 font-medium text-gray-300">{ext.type}</td>
                                         <td className="py-4 px-4 font-medium text-gray-400">{ext.location}</td>
+                                        
                                         <td className="py-4 px-4 font-medium text-gray-400">
-                                            {ext.last_inspection_date ? new Date(ext.last_inspection_date).toLocaleDateString() : '-'}
+                                            {inspections.find(ins => ins.findings?.inspection_type === 'Monthly') 
+                                                ? formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Monthly').inspection_date) 
+                                                : '-'}
+                                        </td>
+                                        <td className="py-4 px-4 font-medium text-gray-400">
+                                            {inspections.find(ins => ins.findings?.inspection_type === 'Quarterly') 
+                                                ? formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Quarterly').inspection_date) 
+                                                : '-'}
+                                        </td>
+                                        <td className="py-4 px-4 font-medium text-gray-400">
+                                            {inspections.find(ins => ins.findings?.inspection_type === 'Annual') 
+                                                ? formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Annual').inspection_date) 
+                                                : '-'}
+                                        </td>
+
+                                        <td className="py-4 px-4 font-medium text-gray-400">
+                                            {ext.last_inspection_date ? formatDate(ext.last_inspection_date) : '-'}
                                         </td>
                                         <td className="py-4 px-4 text-right">
                                             <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${ext.status === 'Operational' ? 'bg-green-500/10 text-green-400' :
