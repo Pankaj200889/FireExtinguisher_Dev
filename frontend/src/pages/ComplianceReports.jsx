@@ -13,6 +13,8 @@ const ComplianceReports = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedType, setSelectedType] = useState('All');
     const [selectedInterval, setSelectedInterval] = useState('All');
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
 
     const formatDate = (d) => {
         if (!d) return '-';
@@ -47,6 +49,10 @@ const ComplianceReports = () => {
 
     const filteredAuditLogs = React.useMemo(() => {
         return auditLogs.filter(log => {
+            const logDate = new Date(log.date);
+            if (startDate && logDate < new Date(startDate + "T00:00:00")) return false;
+            if (endDate && logDate > new Date(endDate + "T23:59:59")) return false;
+            
             const matchesSearch = 
                 (log.serial_number && log.serial_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
                 (log.inspector && log.inspector.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -56,7 +62,7 @@ const ComplianceReports = () => {
             const matchesType = selectedType === 'All' || log.type === selectedType;
             return matchesSearch && matchesInterval && matchesType;
         });
-    }, [auditLogs, searchTerm, selectedInterval, selectedType]);
+    }, [auditLogs, searchTerm, selectedInterval, selectedType, startDate, endDate]);
 
     const generateAuditTrailCSV = () => {
         const headers = [
@@ -147,17 +153,31 @@ const ComplianceReports = () => {
         </div>
     );
 
-    const filteredAssets = extinguishers.filter(ext => {
-        const matchesSearch = (ext.serial_number && ext.serial_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (ext.location && ext.location.toLowerCase().includes(searchTerm.toLowerCase()));
-        const matchesType = selectedType === 'All' || ext.type === selectedType;
-        
-        const inspections = ext.inspections || ext.Inspections || [];
-        const matchesInterval = selectedInterval === 'All' || 
-            inspections.some(ins => ins.findings?.inspection_type === selectedInterval);
+    const filteredAssets = React.useMemo(() => {
+        return extinguishers.map(ext => {
+            const rawIns = ext.inspections || ext.Inspections || [];
+            const filteredIns = rawIns.filter(ins => {
+                const date = new Date(ins.inspection_date || ins.createdAt);
+                if (startDate && date < new Date(startDate + "T00:00:00")) return false;
+                if (endDate && date > new Date(endDate + "T23:59:59")) return false;
+                return true;
+            });
+            return { ...ext, inspections: filteredIns, Inspections: filteredIns };
+        }).filter(ext => {
+            const matchesSearch = (ext.serial_number && ext.serial_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (ext.location && ext.location.toLowerCase().includes(searchTerm.toLowerCase()));
+            const matchesType = selectedType === 'All' || ext.type === selectedType;
             
-        return matchesSearch && matchesType && matchesInterval;
-    });
+            const inspections = ext.inspections || [];
+            const matchesInterval = selectedInterval === 'All' || 
+                inspections.some(ins => ins.findings?.inspection_type === selectedInterval);
+                
+            // If date range filter is active, only show assets that had inspections in that range
+            const matchesDate = (!startDate && !endDate) || inspections.length > 0;
+            
+            return matchesSearch && matchesType && matchesInterval && matchesDate;
+        });
+    }, [extinguishers, searchTerm, selectedType, selectedInterval, startDate, endDate]);
 
     const generateAnnexHPDF = async () => {
         const getBase64 = (url) => {
@@ -540,9 +560,9 @@ const ComplianceReports = () => {
             </div>
 
             {/* ... filters ... */}
-            <div className="bg-slate-800/50 rounded-2xl p-6 border border-white/5 mb-8">
-                <div className="flex flex-col lg:flex-row gap-6 justify-between items-end">
-                    <div className="w-full lg:w-1/4">
+            <div className="bg-slate-800/50 rounded-2xl p-6 border border-white/5 mb-8 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                    <div>
                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Filter Type</label>
                         <select
                             value={selectedType}
@@ -557,7 +577,7 @@ const ComplianceReports = () => {
                         </select>
                     </div>
 
-                    <div className="w-full lg:w-1/4">
+                    <div>
                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Inspection Interval</label>
                         <select
                             value={selectedInterval}
@@ -571,7 +591,27 @@ const ComplianceReports = () => {
                         </select>
                     </div>
 
-                    <div className="w-full lg:w-1/4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Start Date</label>
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="w-full bg-slate-900 border border-gray-700 rounded-xl px-4 py-3 font-bold text-white outline-none focus:border-brand-500 transition-all cursor-pointer"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">End Date</label>
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="w-full bg-slate-900 border border-gray-700 rounded-xl px-4 py-3 font-bold text-white outline-none focus:border-brand-500 transition-all cursor-pointer"
+                        />
+                    </div>
+
+                    <div>
                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Search Assets</label>
                         <div className="relative">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -584,8 +624,25 @@ const ComplianceReports = () => {
                             />
                         </div>
                     </div>
+                </div>
 
-                    <div className="flex flex-wrap gap-2 w-full lg:w-auto justify-end">
+                <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-gray-800 gap-4">
+                    {startDate || endDate || searchTerm || selectedType !== 'All' || selectedInterval !== 'All' ? (
+                        <button
+                            onClick={() => {
+                                setStartDate("");
+                                setEndDate("");
+                                setSearchTerm("");
+                                setSelectedType("All");
+                                setSelectedInterval("All");
+                            }}
+                            className="text-xs font-bold text-red-400 hover:text-red-300 transition-colors"
+                        >
+                            Clear All Filters
+                        </button>
+                    ) : <div />}
+
+                    <div className="flex flex-wrap gap-2 justify-end w-full sm:w-auto">
                         {activeTab === 'compliance' ? (
                             <>
                                 <button onClick={generateCombinedCSV} className="px-4 py-3 rounded-xl border border-gray-600 font-bold text-gray-300 hover:bg-slate-700 transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">
