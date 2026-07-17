@@ -19,6 +19,38 @@ const ComplianceReports = () => {
         return new Date(d).toLocaleDateString('en-GB');
     };
 
+    const getUIIntervalDisplay = (ext, type, months) => {
+        const inspections = ext.inspections || ext.Inspections || [];
+        const match = inspections.find(ins => ins.findings?.inspection_type === type);
+        
+        let baseDate = null;
+        if (match) {
+            baseDate = new Date(match.inspection_date || match.createdAt);
+        } else {
+            baseDate = ext.installation_date || ext.createdAt ? new Date(ext.installation_date || ext.createdAt) : null;
+        }
+        
+        if (!baseDate) return '-';
+        
+        const dueDate = new Date(baseDate);
+        if (type === 'Annual') {
+            dueDate.setFullYear(dueDate.getFullYear() + 1);
+        } else {
+            dueDate.setMonth(dueDate.getMonth() + months);
+        }
+        
+        return (
+            <div className="flex flex-col gap-0.5">
+                <span className="text-gray-200 font-medium">
+                    {match ? `Last: ${formatDate(match.inspection_date || match.createdAt)}` : 'Last: -'}
+                </span>
+                <span className="text-green-400 font-bold text-[10px]">
+                    Due: {formatDate(dueDate)}
+                </span>
+            </div>
+        );
+    };
+
     useEffect(() => {
         loadData();
     }, []);
@@ -323,8 +355,14 @@ const ComplianceReports = () => {
 
             const getNextDue = (type, months) => {
                 const match = inspections.find(ins => ins.findings?.inspection_type === type);
-                if (!match) return '-';
-                const d = new Date(match.inspection_date || match.createdAt);
+                let baseDate = null;
+                if (match) {
+                    baseDate = new Date(match.inspection_date || match.createdAt);
+                } else {
+                    baseDate = ext.installation_date || ext.createdAt ? new Date(ext.installation_date || ext.createdAt) : null;
+                }
+                if (!baseDate) return '-';
+                const d = new Date(baseDate);
                 if (type === 'Annual') {
                     d.setFullYear(d.getFullYear() + 1);
                 } else {
@@ -531,40 +569,13 @@ const ComplianceReports = () => {
                                         <td className="py-4 px-4 font-medium text-gray-400">{ext.location}</td>
                                         
                                         <td className="py-4 px-4 text-xs font-medium text-gray-400">
-                                            {inspections.find(ins => ins.findings?.inspection_type === 'Monthly') ? (
-                                                <div className="flex flex-col gap-0.5">
-                                                    <span className="text-gray-200">Last: {formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Monthly').inspection_date)}</span>
-                                                    <span className="text-green-400 text-[10px]">Due: {(() => {
-                                                        const d = new Date(inspections.find(ins => ins.findings?.inspection_type === 'Monthly').inspection_date);
-                                                        d.setMonth(d.getMonth() + 1);
-                                                        return formatDate(d);
-                                                    })()}</span>
-                                                </div>
-                                            ) : '-'}
+                                            {getUIIntervalDisplay(ext, 'Monthly', 1)}
                                         </td>
                                         <td className="py-4 px-4 text-xs font-medium text-gray-400">
-                                            {inspections.find(ins => ins.findings?.inspection_type === 'Quarterly') ? (
-                                                <div className="flex flex-col gap-0.5">
-                                                    <span className="text-gray-200">Last: {formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Quarterly').inspection_date)}</span>
-                                                    <span className="text-green-400 text-[10px]">Due: {(() => {
-                                                        const d = new Date(inspections.find(ins => ins.findings?.inspection_type === 'Quarterly').inspection_date);
-                                                        d.setMonth(d.getMonth() + 3);
-                                                        return formatDate(d);
-                                                    })()}</span>
-                                                </div>
-                                            ) : '-'}
+                                            {getUIIntervalDisplay(ext, 'Quarterly', 3)}
                                         </td>
                                         <td className="py-4 px-4 text-xs font-medium text-gray-400">
-                                            {inspections.find(ins => ins.findings?.inspection_type === 'Annual') ? (
-                                                <div className="flex flex-col gap-0.5">
-                                                    <span className="text-gray-200">Last: {formatDate(inspections.find(ins => ins.findings?.inspection_type === 'Annual').inspection_date)}</span>
-                                                    <span className="text-green-400 text-[10px]">Due: {(() => {
-                                                        const d = new Date(inspections.find(ins => ins.findings?.inspection_type === 'Annual').inspection_date);
-                                                        d.setFullYear(d.getFullYear() + 1);
-                                                        return formatDate(d);
-                                                    })()}</span>
-                                                </div>
-                                            ) : '-'}
+                                            {getUIIntervalDisplay(ext, 'Annual', 12)}
                                         </td>
 
                                         <td className="py-4 px-4 font-medium text-gray-400">
