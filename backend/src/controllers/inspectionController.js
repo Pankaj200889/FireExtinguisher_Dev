@@ -91,9 +91,16 @@ exports.submitInspection = async (req, res) => {
             newAssetStatus = 'Operational';
         }
 
-        // Calculate next due date (defaulting to Monthly for MVP, can be dynamic based on Asset Type)
+        // Calculate next due date dynamically based on the submitted inspection type
         const nextDue = new Date();
-        nextDue.setMonth(nextDue.getMonth() + 1);
+        const inspType = findings?.inspection_type || 'Routine';
+        if (inspType === 'Quarterly') {
+            nextDue.setMonth(nextDue.getMonth() + 3);
+        } else if (inspType === 'Annual') {
+            nextDue.setFullYear(nextDue.getFullYear() + 1);
+        } else {
+            nextDue.setMonth(nextDue.getMonth() + 1); // Monthly/Routine/Surprise
+        }
 
         // Prepare update object with fallback to existing values if not provided
         // Only update maintenance dates if they are passed in the request (i.e., edited by user)
