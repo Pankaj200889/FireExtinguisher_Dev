@@ -63,21 +63,38 @@ const ComplianceReports = () => {
     });
 
     const generateAnnexHPDF = async () => {
-        const getBase64 = async (url) => {
-            if (!url) return null;
-            try {
-                const fullUrl = url.startsWith('http') ? url : `http://localhost:5000${url}`;
-                const res = await fetch(fullUrl);
-                const blob = await res.blob();
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.readAsDataURL(blob);
-                });
-            } catch (e) {
-                console.error("Image load failed", e);
-                return null;
-            }
+        const getBase64 = (url) => {
+            if (!url) return Promise.resolve(null);
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                
+                // Construct proper absolute URL
+                const base = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+                const cleanBase = base.replace(/\/$/, '');
+                const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+                const fullUrl = url.startsWith('http') ? url : `${cleanBase}${cleanUrl}`;
+                
+                img.src = fullUrl;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    try {
+                        const dataURL = canvas.toDataURL('image/jpeg');
+                        resolve(dataURL);
+                    } catch (e) {
+                        console.error("Canvas conversion failed:", e);
+                        resolve(null);
+                    }
+                };
+                img.onerror = (err) => {
+                    console.error("Failed to load image for base64:", err);
+                    resolve(null);
+                };
+            });
         };
 
         const doc = new jsPDF({ orientation: 'landscape' });
@@ -293,7 +310,7 @@ const ComplianceReports = () => {
             "Monthly Insp", "Next Monthly Due", 
             "Quarterly Insp", "Next Quarterly Due", 
             "Annual Insp", "Next Annual Due",
-            "Status", "Remarks",
+            "Status", "Remarks", "Evidence Photo",
             "Inspected By", "Inspected On", "Device ID"
         ];
 
@@ -327,6 +344,12 @@ const ComplianceReports = () => {
             if (ext.type === 'Fire Hose Reel') capString = specs.hose_length || '-';
             if (ext.type === 'Hydrant Hose Reel') capString = specs.hose_size || '-';
 
+            // Construct photo URL
+            const photoUrl = latest?.evidence_photos?.[0];
+            const fullPhotoUrl = photoUrl 
+                ? (photoUrl.startsWith('http') ? photoUrl : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${photoUrl.startsWith('/') ? photoUrl : '/' + photoUrl}`)
+                : '-';
+
             return [
                 index + 1,
                 ext.serial_number,
@@ -347,6 +370,7 @@ const ComplianceReports = () => {
                 getNextDue('Annual', 12),
                 ext.status,
                 latest?.findings?.remarks || '-',
+                fullPhotoUrl,
                 inspectorName,
                 latest?.inspection_date ? new Date(latest.inspection_date).toLocaleString() : '-',
                 latest?.device_id || ext.device_id || '-'
