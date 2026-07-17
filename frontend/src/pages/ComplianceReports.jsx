@@ -21,6 +21,13 @@ const ComplianceReports = () => {
         return new Date(d).toLocaleDateString('en-GB');
     };
 
+    const getFirstInspectionDate = (inspections) => {
+        if (!inspections || inspections.length === 0) return null;
+        // Since inspections is sorted descending (newest first), the first completed inspection is the last element
+        const earliest = inspections[inspections.length - 1];
+        return earliest.inspection_date || earliest.createdAt;
+    };
+
     const [activeTab, setActiveTab] = useState('compliance'); // 'compliance' or 'audit'
 
     // Flatten and parse audit logs from all inspections across assets
@@ -98,7 +105,12 @@ const ComplianceReports = () => {
         if (match) {
             baseDate = new Date(match.inspection_date || match.createdAt);
         } else {
-            baseDate = ext.installation_date || ext.createdAt ? new Date(ext.installation_date || ext.createdAt) : null;
+            const firstInsp = getFirstInspectionDate(inspections);
+            if (firstInsp) {
+                baseDate = new Date(firstInsp);
+            } else {
+                baseDate = ext.installation_date || ext.createdAt ? new Date(ext.installation_date || ext.createdAt) : null;
+            }
         }
         
         if (!baseDate) return '-';
@@ -444,7 +456,12 @@ const ComplianceReports = () => {
                 if (match) {
                     baseDate = new Date(match.inspection_date || match.createdAt);
                 } else {
-                    baseDate = ext.installation_date || ext.createdAt ? new Date(ext.installation_date || ext.createdAt) : null;
+                    const firstInsp = inspections.length > 0 ? inspections[inspections.length - 1] : null;
+                    if (firstInsp) {
+                        baseDate = new Date(firstInsp.inspection_date || firstInsp.createdAt);
+                    } else {
+                        baseDate = ext.installation_date || ext.createdAt ? new Date(ext.installation_date || ext.createdAt) : null;
+                    }
                 }
                 if (!baseDate) return '-';
                 const d = new Date(baseDate);
