@@ -61,7 +61,7 @@ const ComplianceReports = () => {
     const generateAuditTrailCSV = () => {
         const headers = [
             "Date & Time", "Asset Number", "Type", "Location", 
-            "Event/Interval", "Inspector", "Status", "Remarks", "Evidence Photos"
+            "Event/Interval", "Inspector", "Status", "Remarks"
         ];
         
         const rows = filteredAuditLogs.map(log => [
@@ -72,8 +72,7 @@ const ComplianceReports = () => {
             log.inspection_type,
             log.inspector,
             log.status,
-            log.remarks,
-            log.photos.map(p => p.startsWith('http') ? p : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${p.startsWith('/') ? p : '/' + p}`).join('; ') || '-'
+            log.remarks
         ].map(f => `"${String(f || '').replace(/"/g, '""')}"`).join(','));
 
         const csvContent = [headers.join(','), ...rows].join('\n');
@@ -408,7 +407,7 @@ const ComplianceReports = () => {
             "Monthly Insp", "Next Monthly Due", 
             "Quarterly Insp", "Next Quarterly Due", 
             "Annual Insp", "Next Annual Due",
-            "Status", "Remarks", "Evidence Photo",
+            "Status", "Remarks",
             "Inspected By", "Inspected On", "Device ID"
         ];
 
@@ -448,12 +447,6 @@ const ComplianceReports = () => {
             if (ext.type === 'Fire Hose Reel') capString = specs.hose_length || '-';
             if (ext.type === 'Hydrant Hose Reel') capString = specs.hose_size || '-';
 
-            // Construct photo URL
-            const photoUrl = latest?.evidence_photos?.[0];
-            const fullPhotoUrl = photoUrl 
-                ? (photoUrl.startsWith('http') ? photoUrl : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${photoUrl.startsWith('/') ? photoUrl : '/' + photoUrl}`)
-                : '-';
-
             return [
                 index + 1,
                 ext.serial_number,
@@ -474,7 +467,6 @@ const ComplianceReports = () => {
                 getNextDue('Annual', 12),
                 ext.status,
                 latest?.findings?.remarks || '-',
-                fullPhotoUrl,
                 inspectorName,
                 latest?.inspection_date ? new Date(latest.inspection_date).toLocaleString() : '-',
                 latest?.device_id || ext.device_id || '-'
