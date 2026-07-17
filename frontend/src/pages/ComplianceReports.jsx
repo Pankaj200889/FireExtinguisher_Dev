@@ -19,6 +19,72 @@ const ComplianceReports = () => {
         return new Date(d).toLocaleDateString('en-GB');
     };
 
+    const [activeTab, setActiveTab] = useState('compliance'); // 'compliance' or 'audit'
+
+    // Flatten and parse audit logs from all inspections across assets
+    const auditLogs = React.useMemo(() => {
+        const logs = [];
+        extinguishers.forEach(ext => {
+            const inspections = ext.inspections || ext.Inspections || [];
+            inspections.forEach(ins => {
+                logs.push({
+                    id: ins.id,
+                    date: ins.inspection_date || ins.createdAt,
+                    serial_number: ext.serial_number,
+                    type: ext.type,
+                    location: ext.location,
+                    inspector: ins.User?.name || ins.inspector || 'System',
+                    status: ins.status,
+                    remarks: ins.findings?.remarks || '-',
+                    inspection_type: ins.findings?.inspection_type || 'Routine',
+                    photos: ins.evidence_photos || []
+                });
+            });
+        });
+        // Sort by date descending
+        return logs.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }, [extinguishers]);
+
+    const filteredAuditLogs = React.useMemo(() => {
+        return auditLogs.filter(log => {
+            const matchesSearch = 
+                (log.serial_number && log.serial_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (log.inspector && log.inspector.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (log.remarks && log.remarks.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (log.location && log.location.toLowerCase().includes(searchTerm.toLowerCase()));
+            const matchesInterval = selectedInterval === 'All' || log.inspection_type === selectedInterval;
+            const matchesType = selectedType === 'All' || log.type === selectedType;
+            return matchesSearch && matchesInterval && matchesType;
+        });
+    }, [auditLogs, searchTerm, selectedInterval, selectedType]);
+
+    const generateAuditTrailCSV = () => {
+        const headers = [
+            "Date & Time", "Asset Number", "Type", "Location", 
+            "Event/Interval", "Inspector", "Status", "Remarks", "Evidence Photos"
+        ];
+        
+        const rows = filteredAuditLogs.map(log => [
+            new Date(log.date).toLocaleString('en-GB'),
+            log.serial_number,
+            log.type,
+            log.location,
+            log.inspection_type,
+            log.inspector,
+            log.status,
+            log.remarks,
+            log.photos.map(p => p.startsWith('http') ? p : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${p.startsWith('/') ? p : '/' + p}`).join('; ') || '-'
+        ].map(f => `"${String(f || '').replace(/"/g, '""')}"`).join(','));
+
+        const csvContent = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Asset_Audit_Trail_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+    };
+
     const getUIIntervalDisplay = (ext, type, months) => {
         const inspections = ext.inspections || ext.Inspections || [];
         const match = inspections.find(ins => ins.findings?.inspection_type === type);
@@ -455,7 +521,7 @@ const ComplianceReports = () => {
     return (
         <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 pb-20">
             {/* ... header ... */}
-            <header className="flex items-center gap-4 mb-8">
+            <header className="flex items-center gap-4 mb-6">
                 <button onClick={() => navigate('/dashboard')} className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all">
                     <ArrowLeft className="w-6 h-6" />
                 </button>
@@ -464,6 +530,22 @@ const ComplianceReports = () => {
                     <p className="text-gray-400 text-sm">Annex H & Regulatory Exports</p>
                 </div>
             </header>
+
+            {/* Tabs */}
+            <div className="flex gap-4 border-b border-gray-800 mb-8">
+                <button
+                    onClick={() => setActiveTab('compliance')}
+                    className={`pb-4 px-2 font-bold text-sm transition-all border-b-2 ${activeTab === 'compliance' ? 'border-brand-500 text-brand-400' : 'border-transparent text-gray-400 hover:text-white'}`}
+                >
+                    Compliance Status
+                </button>
+                <button
+                    onClick={() => setActiveTab('audit')}
+                    className={`pb-4 px-2 font-bold text-sm transition-all border-b-2 ${activeTab === 'audit' ? 'border-brand-500 text-brand-400' : 'border-transparent text-gray-400 hover:text-white'}`}
+                >
+                    Audit Trail & History
+                </button>
+            </div>
 
             {/* ... filters ... */}
             <div className="bg-slate-800/50 rounded-2xl p-6 border border-white/5 mb-8">
@@ -512,89 +594,174 @@ const ComplianceReports = () => {
                     </div>
 
                     <div className="flex flex-wrap gap-2 w-full lg:w-auto justify-end">
-                        <button onClick={generateCombinedCSV} className="px-4 py-3 rounded-xl border border-gray-600 font-bold text-gray-300 hover:bg-slate-700 transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">
-                            <FileText className="w-4 h-4" /> Master CSV
-                        </button>
-                        <button onClick={generateDetailedCSV} className="px-4 py-3 rounded-xl border border-brand-500/50 bg-brand-500/10 font-bold text-brand-400 hover:bg-brand-500/20 transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">
-                            <FileText className="w-4 h-4" /> {selectedType === 'All' ? 'Detailed CSV' : `${selectedType} CSV`}
-                        </button>
-                        <button onClick={generateAnnexHPDF} className="px-4 py-3 rounded-xl bg-brand-600 font-bold text-white hover:bg-brand-500 shadow-lg shadow-brand-500/20 transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">
-                            <Download className="w-4 h-4" /> PDF Report
-                        </button>
+                        {activeTab === 'compliance' ? (
+                            <>
+                                <button onClick={generateCombinedCSV} className="px-4 py-3 rounded-xl border border-gray-600 font-bold text-gray-300 hover:bg-slate-700 transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">
+                                    <FileText className="w-4 h-4" /> Master CSV
+                                </button>
+                                <button onClick={generateDetailedCSV} className="px-4 py-3 rounded-xl border border-brand-500/50 bg-brand-500/10 font-bold text-brand-400 hover:bg-brand-500/20 transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">
+                                    <FileText className="w-4 h-4" /> {selectedType === 'All' ? 'Detailed CSV' : `${selectedType} CSV`}
+                                </button>
+                                <button onClick={generateAnnexHPDF} className="px-4 py-3 rounded-xl bg-brand-600 font-bold text-white hover:bg-brand-500 shadow-lg shadow-brand-500/20 transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">
+                                    <Download className="w-4 h-4" /> PDF Report
+                                </button>
+                            </>
+                        ) : (
+                            <button onClick={generateAuditTrailCSV} className="px-4 py-3 rounded-xl bg-brand-600 font-bold text-white hover:bg-brand-500 shadow-lg shadow-brand-500/20 transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">
+                                <FileText className="w-4 h-4" /> Download Audit CSV
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
 
             <div className="bg-slate-800/50 rounded-2xl p-6 border border-white/5">
                 <h3 className="text-lg font-bold text-gray-200 mb-6 flex items-center gap-2">
-                    <Filter className="w-5 h-5 text-brand-500" /> Report Preview ({filteredAssets.length})
+                    <Filter className="w-5 h-5 text-brand-500" /> 
+                    {activeTab === 'compliance' 
+                        ? `Report Preview (${filteredAssets.length})` 
+                        : `Audit Log Trail (${filteredAuditLogs.length})`}
                 </h3>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="border-b border-gray-700">
-                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Photo</th>
-                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Asset No</th>
-                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
-                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Location</th>
-                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Monthly</th>
-                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Quarterly</th>
-                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Annual</th>
-                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Last Inspection</th>
-                                <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-700/50">
-                            {filteredAssets.map(ext => {
-                                const inspections = ext.inspections || ext.Inspections || [];
-                                const latestInspection = inspections.length > 0 ? inspections[0] : null;
-                                const thumb = latestInspection?.evidence_photos?.[0];
-
-                                return (
-                                    <tr key={ext.id} className="hover:bg-white/5 transition-colors">
-                                        <td className="py-4 px-4">
-                                            {thumb ? (
-                                                <img
-                                                    src={thumb.startsWith('http') || thumb.startsWith('/uploads') ? `http://localhost:5000${thumb}` : thumb}
-                                                    alt="Asset"
-                                                    className="w-12 h-12 rounded object-cover border border-white/10"
-                                                />
-                                            ) : (
-                                                <div className="w-12 h-12 rounded bg-white/5 flex items-center justify-center text-xs text-gray-600">No Img</div>
-                                            )}
-                                        </td>
-                                        <td className="py-4 px-4 font-bold text-white">{ext.serial_number}</td>
-                                        <td className="py-4 px-4 font-medium text-gray-300">{ext.type}</td>
-                                        <td className="py-4 px-4 font-medium text-gray-400">{ext.location}</td>
-                                        
-                                        <td className="py-4 px-4 text-xs font-medium text-gray-400">
-                                            {getUIIntervalDisplay(ext, 'Monthly', 1)}
-                                        </td>
-                                        <td className="py-4 px-4 text-xs font-medium text-gray-400">
-                                            {getUIIntervalDisplay(ext, 'Quarterly', 3)}
-                                        </td>
-                                        <td className="py-4 px-4 text-xs font-medium text-gray-400">
-                                            {getUIIntervalDisplay(ext, 'Annual', 12)}
-                                        </td>
-
-                                        <td className="py-4 px-4 font-medium text-gray-400">
-                                            {ext.last_inspection_date ? formatDate(ext.last_inspection_date) : '-'}
-                                        </td>
-                                        <td className="py-4 px-4 text-right">
-                                            <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${ext.status === 'Operational' ? 'bg-green-500/10 text-green-400' :
-                                                ext.status === 'Maintenance Required' ? 'bg-yellow-500/10 text-yellow-400' : 'bg-slate-700 text-gray-400'
-                                                }`}>
-                                                {ext.status || 'Pending'}
-                                            </span>
-                                        </td>
+                    {activeTab === 'compliance' ? (
+                        <>
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="border-b border-gray-700">
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Photo</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Asset No</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Location</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Monthly</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Quarterly</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Annual</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Last Inspection</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Status</th>
                                     </tr>
-                                )
-                            })}
-                        </tbody>
-                    </table>
-                    {filteredAssets.length === 0 && (
-                        <div className="text-center py-10 text-gray-500 font-medium">No filtered assets found.</div>
+                                </thead>
+                                <tbody className="divide-y divide-gray-700/50">
+                                    {filteredAssets.map(ext => {
+                                        const inspections = ext.inspections || ext.Inspections || [];
+                                        const latestInspection = inspections.length > 0 ? inspections[0] : null;
+                                        const thumb = latestInspection?.evidence_photos?.[0];
+
+                                        return (
+                                            <tr key={ext.id} className="hover:bg-white/5 transition-colors">
+                                                <td className="py-4 px-4">
+                                                    {thumb ? (
+                                                        <img
+                                                            src={getImgSrc(thumb)}
+                                                            alt="Asset"
+                                                            className="w-12 h-12 rounded object-cover border border-white/10"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-12 h-12 rounded bg-white/5 flex items-center justify-center text-xs text-gray-600">No Img</div>
+                                                    )}
+                                                </td>
+                                                <td className="py-4 px-4 font-bold text-white">{ext.serial_number}</td>
+                                                <td className="py-4 px-4 font-medium text-gray-300">{ext.type}</td>
+                                                <td className="py-4 px-4 font-medium text-gray-400">{ext.location}</td>
+                                                
+                                                <td className="py-4 px-4 text-xs font-medium text-gray-400">
+                                                    {getUIIntervalDisplay(ext, 'Monthly', 1)}
+                                                </td>
+                                                <td className="py-4 px-4 text-xs font-medium text-gray-400">
+                                                    {getUIIntervalDisplay(ext, 'Quarterly', 3)}
+                                                </td>
+                                                <td className="py-4 px-4 text-xs font-medium text-gray-400">
+                                                    {getUIIntervalDisplay(ext, 'Annual', 12)}
+                                                </td>
+
+                                                <td className="py-4 px-4 font-medium text-gray-400">
+                                                    {ext.last_inspection_date ? formatDate(ext.last_inspection_date) : '-'}
+                                                </td>
+                                                <td className="py-4 px-4 text-right">
+                                                    <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${ext.status === 'Operational' ? 'bg-green-500/10 text-green-400' :
+                                                        ext.status === 'Maintenance Required' ? 'bg-yellow-500/10 text-yellow-400' : 'bg-slate-700 text-gray-400'
+                                                        }`}>
+                                                        {ext.status || 'Pending'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
+                            {filteredAssets.length === 0 && (
+                                <div className="text-center py-10 text-gray-500 font-medium">No filtered assets found.</div>
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="border-b border-gray-700">
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Date & Time</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Asset No</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Event</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Inspector</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Remarks</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Photo</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-700/50">
+                                    {filteredAuditLogs.map(log => (
+                                        <tr key={log.id} className="hover:bg-white/5 transition-colors">
+                                            <td className="py-4 px-4 text-xs font-medium text-gray-300">
+                                                {new Date(log.date).toLocaleString('en-GB')}
+                                            </td>
+                                            <td className="py-4 px-4 text-xs font-bold text-white">
+                                                {log.serial_number}
+                                            </td>
+                                            <td className="py-4 px-4 text-xs font-medium text-gray-400">
+                                                {log.type}
+                                            </td>
+                                            <td className="py-4 px-4 text-xs font-medium">
+                                                <span className="px-2 py-0.5 rounded bg-slate-700 text-gray-300 text-[10px] font-bold">
+                                                    {log.inspection_type}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-4 text-xs font-medium text-gray-300">
+                                                {log.inspector}
+                                            </td>
+                                            <td className="py-4 px-4 text-xs font-medium text-gray-400 max-w-[200px] truncate italic">
+                                                "{log.remarks}"
+                                            </td>
+                                            <td className="py-4 px-4 text-xs">
+                                                {log.photos?.[0] ? (
+                                                    <a 
+                                                        href={getImgSrc(log.photos[0])}
+                                                        target="_blank" 
+                                                        rel="noreferrer"
+                                                    >
+                                                        <img 
+                                                            src={getImgSrc(log.photos[0])}
+                                                            alt="Evidence" 
+                                                            className="w-10 h-10 rounded object-cover border border-white/10 hover:border-brand-500 transition-all"
+                                                        />
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-gray-600 text-[10px]">No Photo</span>
+                                                )}
+                                            </td>
+                                            <td className="py-4 px-4 text-right">
+                                                <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${log.status === 'Pass' || log.status === 'Operational' ? 'bg-green-500/10 text-green-400' :
+                                                    log.status === 'Fail' || log.status === 'Maintenance' ? 'bg-red-500/10 text-red-400' : 'bg-slate-700 text-gray-400'
+                                                    }`}>
+                                                    {log.status || 'Pending'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {filteredAuditLogs.length === 0 && (
+                                <div className="text-center py-10 text-gray-500 font-medium">No audit log entries found.</div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
