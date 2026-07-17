@@ -28,6 +28,13 @@ const ComplianceReports = () => {
         return earliest.inspection_date || earliest.createdAt;
     };
 
+    const getBaselineDate = (ext) => {
+        const inspections = ext.inspections || ext.Inspections || [];
+        const firstInsp = getFirstInspectionDate(inspections);
+        if (firstInsp) return firstInsp;
+        return ext.installation_date || ext.createdAt;
+    };
+
     const [activeTab, setActiveTab] = useState('compliance'); // 'compliance' or 'audit'
 
     // Flatten and parse audit logs from all inspections across assets
@@ -435,6 +442,7 @@ const ComplianceReports = () => {
         // Detailed headers mimicking Annex H + tracking info
         const headers = [
             "Sl No", "Asset Number", "Type", "Capacity", "Year", "Make", "Location",
+            "Baseline Date",
             "Last Hydro Test", "Next Hydro Due", "Last Refilled", "Next Refill Due",
             "Monthly Insp", "Next Monthly Due", 
             "Quarterly Insp", "Next Quarterly Due", 
@@ -492,6 +500,7 @@ const ComplianceReports = () => {
                 ext.mfg_year || specs.mfg_year || '-',
                 ext.make || specs.make || '-',
                 ext.location,
+                formatDate(getBaselineDate(ext)),
                 formatDate(ext.last_hydro_test_date),
                 formatDate(ext.next_hydro_test_due),
                 formatDate(ext.last_refilled_date),
@@ -699,6 +708,7 @@ const ComplianceReports = () => {
                                         <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Asset No</th>
                                         <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
                                         <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Location</th>
+                                        <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Baseline Date</th>
                                         <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Monthly</th>
                                         <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Quarterly</th>
                                         <th className="py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Annual</th>
@@ -728,6 +738,7 @@ const ComplianceReports = () => {
                                                 <td className="py-4 px-4 font-bold text-white">{ext.serial_number}</td>
                                                 <td className="py-4 px-4 font-medium text-gray-300">{ext.type}</td>
                                                 <td className="py-4 px-4 font-medium text-gray-400">{ext.location}</td>
+                                                <td className="py-4 px-4 font-semibold text-gray-300 text-xs">{formatDate(getBaselineDate(ext))}</td>
                                                 
                                                 <td className="py-4 px-4 text-xs font-medium text-gray-400">
                                                     {getUIIntervalDisplay(ext, 'Monthly', 1)}
