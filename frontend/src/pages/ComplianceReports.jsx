@@ -761,10 +761,14 @@ const ComplianceReports = () => {
                                                     {ext.last_inspection_date ? formatDate(ext.last_inspection_date) : '-'}
                                                 </td>
                                                 <td className="py-4 px-4 text-right">
-                                                    <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${ext.status === 'Operational' ? 'bg-green-500/10 text-green-400' :
-                                                        ext.status === 'Maintenance Required' ? 'bg-yellow-500/10 text-yellow-400' : 'bg-slate-700 text-gray-400'
-                                                        }`}>
-                                                        {ext.status || 'Pending'}
+                                                    <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${
+                                                        (ext.status || '').toUpperCase() === 'OPERATIONAL' ? 'bg-green-500/10 text-green-400' :
+                                                        (ext.status || '').toUpperCase() === 'PENDING INSPECTION' ? 'bg-amber-500/10 text-amber-400' :
+                                                        (ext.status || '').toUpperCase() === 'DUE FOR INSPECTION' ? 'bg-red-500/10 text-red-400' :
+                                                        (ext.status || '').toUpperCase().includes('MAINT') ? 'bg-orange-500/10 text-orange-400' :
+                                                        'bg-red-500/10 text-red-500'
+                                                    }`}>
+                                                        {ext.status || 'PENDING INSPECTION'}
                                                     </span>
                                                 </td>
                                             </tr>

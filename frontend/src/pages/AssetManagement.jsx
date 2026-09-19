@@ -65,7 +65,7 @@ const AssetManagement = () => {
 
         // Apply Status Filter
         if (filterStatus !== 'All') {
-            result = result.filter(a => a.status === filterStatus);
+            result = result.filter(a => (a.status || '').toUpperCase() === filterStatus.toUpperCase());
         }
 
 

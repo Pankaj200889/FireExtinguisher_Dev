@@ -148,7 +148,7 @@ const Dashboard = () => {
             // Filter from the main assets list to get counts for this specific type
             const typeAssets = assets.filter(a => a.type === type);
             const count = typeAssets.length;
-            const ops = typeAssets.filter(a => a.status === 'Operational').length;
+            const ops = typeAssets.filter(a => (a.status || '').toUpperCase() === 'OPERATIONAL').length;
 
             // Only add to breakdown if it exists or if we are in specific view (even if 0)
             if (count > 0 || selectedCategory !== 'All') {
