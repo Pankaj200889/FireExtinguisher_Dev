@@ -181,8 +181,11 @@ const AssetManagement = () => {
                         className="pl-10 pr-4 py-2 bg-slate-800 border border-gray-700 rounded-xl appearance-none hover:bg-slate-700 transition-colors outline-none cursor-pointer"
                     >
                         <option value="All">All Status</option>
-                        <option value="Operational">Operational</option>
-                        <option value="Maintenance Required">Maintenance Required</option>
+                        <option value="OPERATIONAL">OPERATIONAL</option>
+                        <option value="DUE FOR INSPECTION">DUE FOR INSPECTION</option>
+                        <option value="PENDING INSPECTION">PENDING INSPECTION</option>
+                        <option value="UNDER MAINTENANCE">UNDER MAINTENANCE</option>
+                        <option value="FAILED">FAILED</option>
                     </select>
                 </div>
             </div>
@@ -202,8 +205,12 @@ const AssetManagement = () => {
                             className="bg-slate-800/50 border border-white/5 rounded-2xl p-6 hover:border-brand-500/30 transition-all group"
                         >
                             <div className="flex justify-between items-start mb-4">
-                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${asset.status === 'Operational' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
-                                    }`}>
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                    asset.status === 'OPERATIONAL' || asset.status === 'Operational' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                                    asset.status === 'PENDING INSPECTION' || asset.status === 'Pending Inspection' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                                    asset.status === 'UNDER MAINTENANCE' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
+                                    'bg-red-500/20 text-red-400 border border-red-500/30'
+                                }`}>
                                     {asset.status}
                                 </span>
                                 <div className="flex items-center gap-3">

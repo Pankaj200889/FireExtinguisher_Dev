@@ -1,6 +1,52 @@
 const { Asset, Inspection, User } = require('../models');
 const QRCode = require('qrcode');
 
+function computeAssetStatus(asset) {
+    if (!asset) return 'PENDING INSPECTION';
+
+    const lastInspDate = asset.last_inspection_date || asset.Inspections?.[0]?.inspection_date || asset.Inspections?.[0]?.createdAt;
+    
+    // 1. PENDING INSPECTION: Asset installed but never inspected
+    if (!lastInspDate) {
+        return 'PENDING INSPECTION';
+    }
+
+    const latestInspection = asset.Inspections?.[0] || asset.inspections?.[0];
+    const rawStatus = (
+        latestInspection?.status ||
+        latestInspection?.findings?.status ||
+        asset.status ||
+        ''
+    ).toUpperCase();
+
+    // 4. UNDER MAINTENANCE: Observation status is MAINT / Maintenance
+    if (rawStatus.includes('MAINT')) {
+        return 'UNDER MAINTENANCE';
+    }
+
+    // 5. FAILED: Observation status is FAIL / Defective
+    if (rawStatus.includes('FAIL') || rawStatus.includes('DEFECT')) {
+        return 'FAILED';
+    }
+
+    // Check if Next Inspection Due has passed
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const nextDueDate = asset.next_inspection_due ? new Date(asset.next_inspection_due) : null;
+    if (nextDueDate) nextDueDate.setHours(0, 0, 0, 0);
+
+    const isOverdue = nextDueDate ? (nextDueDate < today) : false;
+
+    // 2. DUE FOR INSPECTION: Next Inspection Due date has passed
+    if (isOverdue) {
+        return 'DUE FOR INSPECTION';
+    }
+
+    // 3. OPERATIONAL: Observation status is PASS and Next Inspection Due is not passed
+    return 'OPERATIONAL';
+}
+
 // Create a new asset
 exports.createAsset = async (req, res) => {
     try {
@@ -102,7 +148,13 @@ exports.getAllAssets = async (req, res) => {
 
         const assets = await Asset.findAll(options);
         console.log(`[DEBUG] Found ${assets.length} assets`);
-        res.json(assets);
+        
+        const formattedAssets = assets.map(asset => {
+            const json = asset.toJSON();
+            json.status = computeAssetStatus(json);
+            return json;
+        });
+        res.json(formattedAssets);
     } catch (error) {
         console.error("GetAllAssets Error:", error);
         res.status(500).json({ message: 'Server error' });
@@ -145,7 +197,12 @@ exports.getComplianceReports = async (req, res) => {
             }
         }
 
-        res.json(assets);
+        const formattedAssets = assets.map(asset => {
+            const json = asset.toJSON();
+            json.status = computeAssetStatus(json);
+            return json;
+        });
+        res.json(formattedAssets);
     } catch (error) {
         console.error("Compliance Report Fetch Error:", error);
         res.status(500).json({
@@ -202,7 +259,9 @@ exports.getAssetById = async (req, res) => {
         if (!asset) {
             return res.status(404).json({ message: 'Asset not found' });
         }
-        res.json(asset);
+        const json = asset.toJSON();
+        json.status = computeAssetStatus(json);
+        res.json(json);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
@@ -239,7 +298,9 @@ exports.getAssetBySerial = async (req, res) => {
         if (!asset) {
             return res.status(404).json({ message: 'Asset not found' });
         }
-        res.json(asset);
+        const json = asset.toJSON();
+        json.status = computeAssetStatus(json);
+        res.json(json);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
