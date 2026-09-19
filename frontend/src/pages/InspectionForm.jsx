@@ -201,6 +201,20 @@ const InspectionForm = () => {
         }
     };
 
+    const formatDateDDMMYYYY = (val) => {
+        if (!val || val === '-') return '-';
+        if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+            const [y, m, d] = val.split('-');
+            return `${d}-${m}-${y}`;
+        }
+        const dateObj = new Date(val);
+        if (isNaN(dateObj.getTime())) return String(val);
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const year = dateObj.getFullYear();
+        return `${day}-${month}-${year}`;
+    };
+
     const calculateNextDates = () => {
         if (!asset) return {};
         const today = new Date();
@@ -208,9 +222,9 @@ const InspectionForm = () => {
         const nextQuarter = new Date(today); nextQuarter.setMonth(today.getMonth() + 3);
         const nextYear = new Date(today); nextYear.setFullYear(today.getFullYear() + 1);
         return {
-            monthly: nextMonth.toLocaleDateString(),
-            quarterly: nextQuarter.toLocaleDateString(),
-            yearly: nextYear.toLocaleDateString()
+            monthly: formatDateDDMMYYYY(nextMonth),
+            quarterly: formatDateDDMMYYYY(nextQuarter),
+            yearly: formatDateDDMMYYYY(nextYear)
         };
     };
 
@@ -474,12 +488,12 @@ const InspectionForm = () => {
                             {asset.type === 'Fire Sand Bucket' ? (
                                 <>
                                     <span className="block text-gray-500 text-xs mb-1">Inspected On</span>
-                                    <span className="font-semibold text-white">{new Date().toLocaleDateString('en-GB')}</span>
+                                    <span className="font-semibold text-white">{formatDateDDMMYYYY(new Date())}</span>
                                 </>
                             ) : (
                                 <>
                                     <span className="block text-gray-500 text-xs mb-1">Pressure Tested On</span>
-                                    <span className="font-semibold text-white">{maintenance.last_hydro_test_date || '-'}</span>
+                                    <span className="font-semibold text-white">{formatDateDDMMYYYY(maintenance.last_hydro_test_date)}</span>
                                 </>
                             )}
                         </div>

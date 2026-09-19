@@ -19,18 +19,27 @@ function LoginForm() {
         setLoading(true);
         setError("");
         try {
-            const formData = new FormData();
-            formData.append('username', data.username);
-            formData.append('password', data.password);
+            const payload = {
+                email: data.username,
+                username: data.username,
+                password: data.password
+            };
 
-            const response = await api.post('/token', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' } // OAuth2 expects form data
-            });
+            const response = await api.post('/api/auth/login', payload);
 
-            login(response.data.access_token, redirectPath);
+            const token = response.data.token || response.data.access_token;
+            if (token) {
+                login(token, redirectPath);
+            } else {
+                setError("No authentication token received from server.");
+                setLoading(false);
+            }
         } catch (err: any) {
             console.error("Login failed", err);
-            setError(err.response?.data?.detail || "Login failed. Check console.");
+            const msg = err.response?.data?.message 
+                || err.response?.data?.detail 
+                || (err.response?.status === 404 ? "API Endpoint not found (404). Please check backend deployment." : "Login failed. Invalid credentials or network error.");
+            setError(msg);
             setLoading(false);
         }
     };
