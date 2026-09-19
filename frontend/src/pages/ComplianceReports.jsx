@@ -18,7 +18,12 @@ const ComplianceReports = () => {
 
     const formatDate = (d) => {
         if (!d) return '-';
-        return new Date(d).toLocaleDateString('en-GB');
+        const dateObj = new Date(d);
+        if (isNaN(dateObj.getTime())) return '-';
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const year = dateObj.getFullYear();
+        return `${day}-${month}-${year}`;
     };
 
     const getFirstInspectionDate = (inspections) => {
@@ -85,7 +90,7 @@ const ComplianceReports = () => {
         ];
         
         const rows = filteredAuditLogs.map(log => [
-            new Date(log.date).toLocaleString('en-GB'),
+            formatDate(log.date),
             log.serial_number,
             log.type,
             log.location,
@@ -131,9 +136,11 @@ const ComplianceReports = () => {
         
         return (
             <div className="flex flex-col gap-0.5">
-                <span className="text-gray-200 font-medium">
-                    {match ? `Last: ${formatDate(match.inspection_date || match.createdAt)}` : 'Last: -'}
-                </span>
+                {match && (
+                    <span className="text-gray-200 font-medium">
+                        Last: {formatDate(match.inspection_date || match.createdAt)}
+                    </span>
+                )}
                 <span className="text-green-400 font-bold text-[10px]">
                     Due: {formatDate(dueDate)}
                 </span>

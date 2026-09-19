@@ -223,9 +223,12 @@ export default function ExtinguisherMasterPage() {
                         <p className="text-xs text-gray-500 font-bold uppercase tracking-wide mb-1">Service Schedule</p>
                         <div className="flex justify-between">
                             <div className="text-left">
-                                <span className="block text-[10px] text-gray-500">Next Service/Refill</span>
+                                <span className="block text-[10px] text-gray-500">Next Inspection Due</span>
                                 <span className="text-sm font-medium text-gray-800">
-                                    {data.next_service_due ? new Date(data.next_service_due).toLocaleDateString() : 'N/A'}
+                                    {data.next_service_due ? (() => {
+                                        const d = new Date(data.next_service_due);
+                                        return isNaN(d.getTime()) ? 'N/A' : `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+                                    })() : 'N/A'}
                                 </span>
                             </div>
                         </div>

@@ -37,10 +37,22 @@ exports.register = async (req, res) => {
 // Login user
 exports.login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const identifier = req.body.email || req.body.username;
+        const password = req.body.password;
 
-        // Check user
-        const user = await User.findOne({ where: { email } });
+        if (!identifier || !password) {
+            return res.status(400).json({ message: 'Please provide email/username and password' });
+        }
+
+        // Check user (by email or name)
+        const user = await User.findOne({
+            where: {
+                [require('sequelize').Op.or]: [
+                    { email: identifier },
+                    { name: identifier }
+                ]
+            }
+        });
         if (!user) {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
@@ -88,6 +100,7 @@ exports.login = async (req, res) => {
                 name: user.name,
                 company_id: user.company_id
             },
+            sub: user.email || user.name
         };
 
         jwt.sign(
@@ -96,7 +109,7 @@ exports.login = async (req, res) => {
             { expiresIn: '24h' },
             (err, token) => {
                 if (err) throw err;
-                res.json({ token, user: payload.user });
+                res.json({ token, access_token: token, token_type: 'bearer', user: payload.user });
             }
         );
     } catch (error) {

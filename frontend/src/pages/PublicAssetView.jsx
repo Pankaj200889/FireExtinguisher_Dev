@@ -99,7 +99,44 @@ const PublicAssetView = () => {
         </div>
     );
 
-    const isOperational = asset.status === 'Operational';
+    const formatDateDDMMYYYY = (val) => {
+        if (!val || val === 'Never' || val === 'N/A') return val || 'N/A';
+        const dateObj = new Date(val);
+        if (isNaN(dateObj.getTime())) return String(val);
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const year = dateObj.getFullYear();
+        return `${day}-${month}-${year}`;
+    };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const nextDueDate = asset.next_inspection_due ? new Date(asset.next_inspection_due) : null;
+    if (nextDueDate) nextDueDate.setHours(0, 0, 0, 0);
+
+    const isOverdue = nextDueDate ? (nextDueDate < today) : false;
+    const isPendingOrDue = isOverdue || asset.status === 'Pending Inspection' || asset.status === 'Due for Inspection' || asset.status === 'Pending Check' || !asset.last_inspection_date;
+
+    let statusConfig = {
+        title: asset.status ? asset.status.toUpperCase() : 'PENDING INSPECTION',
+        bgColor: asset.status === 'Operational' ? 'bg-green-600' : 'bg-red-600',
+        IconComponent: asset.status === 'Operational' ? CheckCircle : AlertTriangle,
+    };
+
+    if (isPendingOrDue) {
+        statusConfig = {
+            title: 'DUE FOR INSPECTION',
+            bgColor: 'bg-red-600',
+            IconComponent: AlertTriangle,
+        };
+    } else if (asset.status === 'Defective' || asset.status === 'Out of Service') {
+        statusConfig = {
+            title: asset.status ? asset.status.toUpperCase() : 'DEFECTIVE',
+            bgColor: 'bg-red-700',
+            IconComponent: AlertTriangle,
+        };
+    }
 
     const getCapacityDetails = () => {
         if (asset.type === 'Fire Hose Reel') return { label: 'Hose Length', value: asset.specifications?.hose_length || 'N/A' };
@@ -128,21 +165,19 @@ const PublicAssetView = () => {
         return asset.type;
     };
 
+    const StatusIcon = statusConfig.IconComponent;
+
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center p-4 md:p-8 font-sans">
             <div className={`w-full max-w-lg bg-white rounded-3xl shadow-xl overflow-hidden ${(showChecklist && lastInspection) ? 'hidden' : ''}`}>
                 {/* Header Status */}
-                <div className={`p-8 text-center ${isOperational ? 'bg-green-600' : 'bg-red-600'} text-white relative`}>
+                <div className={`p-8 text-center ${statusConfig.bgColor} text-white relative shadow-inner transition-colors duration-300`}>
                     <button onClick={() => navigate(-1)} className="absolute left-4 top-4 p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors">
                         <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     </button>
-                    {isOperational ? (
-                        <CheckCircle className="w-20 h-20 mx-auto mb-4 opacity-90" />
-                    ) : (
-                        <AlertTriangle className="w-20 h-20 mx-auto mb-4 opacity-90" />
-                    )}
-                    <h1 className="text-3xl font-bold tracking-tight">{asset.status.toUpperCase()}</h1>
-                    <p className="mt-2 opacity-80">Serial: {asset.serial_number}</p>
+                    <StatusIcon className="w-20 h-20 mx-auto mb-4 opacity-90 drop-shadow-md" />
+                    <h1 className="text-3xl font-bold tracking-tight">{statusConfig.title}</h1>
+                    <p className="mt-2 opacity-90 font-medium">Serial: {asset.serial_number}</p>
                 </div>
 
                 {/* Details */}
@@ -188,7 +223,7 @@ const PublicAssetView = () => {
                             <div>
                                 <p className="text-sm text-gray-500">Last Inspected</p>
                                 <p className="font-semibold text-gray-900">
-                                    {asset.last_inspection_date ? new Date(asset.last_inspection_date).toLocaleDateString() : 'Never'}
+                                    {asset.last_inspection_date ? formatDateDDMMYYYY(asset.last_inspection_date) : 'Never'}
                                 </p>
                                 {asset.Inspections && asset.Inspections[0]?.User?.name && (
                                     <p className="text-xs text-brand-600 font-medium mt-1">
@@ -198,10 +233,12 @@ const PublicAssetView = () => {
                             </div>
                         </div>
                         <div className="flex items-start gap-4">
-                            <Clock className="w-5 h-5 text-orange-600 mt-0.5" />
+                            <Clock className={`w-5 h-5 ${isOverdue ? 'text-red-600' : 'text-orange-600'} mt-0.5`} />
                             <div>
-                                <p className="text-sm text-gray-500">Next Service Due</p>
-                                <p className="font-semibold text-gray-900">{asset.next_inspection_due ? new Date(asset.next_inspection_due).toLocaleDateString() : 'N/A'}</p>
+                                <p className="text-sm text-gray-500">Next Inspection Due</p>
+                                <p className={`font-semibold ${isOverdue ? 'text-red-600 font-bold' : 'text-gray-900'}`}>
+                                    {asset.next_inspection_due ? formatDateDDMMYYYY(asset.next_inspection_due) : 'N/A'}
+                                </p>
                             </div>
                         </div>
                     </div>

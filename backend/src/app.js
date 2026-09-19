@@ -32,8 +32,11 @@ app.use((req, res, next) => {
 app.get('/', (req, res) => res.json({ message: 'IgnisGuard Backend Running' }));
 app.get('/api', (req, res) => res.json({ message: 'IgnisGuard API Ready' }));
 
-// Mount Routes
-// Mount Routes
+// Direct authentication endpoint aliases (/token & /api/token)
+app.post('/token', require('./controllers/authController').login);
+app.post('/api/token', require('./controllers/authController').login);
+
+// Mount Standard API Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/assets', require('./routes/assetRoutes'));
 app.use('/api/inspections', require('./routes/inspectionRoutes'));
@@ -41,6 +44,17 @@ app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/company', require('./routes/companyRoutes'));
 app.use('/api/upload', require('./routes/uploadRoutes'));
 app.use('/api/superadmin', require('./routes/superAdminRoutes'));
+
+// Route Aliases without /api prefix for maximum compatibility
+app.use('/auth', require('./routes/authRoutes'));
+app.use('/extinguishers', require('./routes/assetRoutes'));
+app.use('/assets', require('./routes/assetRoutes'));
+app.use('/inspections', require('./routes/inspectionRoutes'));
+app.use('/reports', require('./routes/reportRoutes'));
+app.use('/company', require('./routes/companyRoutes'));
+app.use('/settings', require('./routes/companyRoutes'));
+app.use('/upload', require('./routes/uploadRoutes'));
+app.use('/users', require('./routes/authRoutes'));
 
 // Static folder for uploads
 app.use('/uploads', express.static('uploads'));
