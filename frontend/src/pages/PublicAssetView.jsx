@@ -109,30 +109,44 @@ const PublicAssetView = () => {
         return `${day}-${month}-${year}`;
     };
 
+    const hasNoInspections = !asset.last_inspection_date && (!asset.Inspections || asset.Inspections.length === 0);
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const nextDueDate = asset.next_inspection_due ? new Date(asset.next_inspection_due) : null;
     if (nextDueDate) nextDueDate.setHours(0, 0, 0, 0);
 
-    const isOverdue = nextDueDate ? (nextDueDate < today) : false;
-    const isPendingOrDue = isOverdue || asset.status === 'Pending Inspection' || asset.status === 'Due for Inspection' || asset.status === 'Pending Check' || !asset.last_inspection_date;
+    const isOverdue = !hasNoInspections && nextDueDate ? (nextDueDate < today) : false;
+    const rawStatus = (asset.status || '').toUpperCase();
 
     let statusConfig = {
-        title: asset.status ? asset.status.toUpperCase() : 'PENDING INSPECTION',
-        bgColor: asset.status === 'Operational' ? 'bg-green-600' : 'bg-red-600',
-        IconComponent: asset.status === 'Operational' ? CheckCircle : AlertTriangle,
+        title: 'OPERATIONAL',
+        bgColor: 'bg-green-600',
+        IconComponent: CheckCircle,
     };
 
-    if (isPendingOrDue) {
+    if (hasNoInspections || rawStatus === 'PENDING INSPECTION' || rawStatus === 'PENDING CHECK') {
+        statusConfig = {
+            title: 'PENDING INSPECTION',
+            bgColor: 'bg-amber-500',
+            IconComponent: Clock,
+        };
+    } else if (isOverdue || rawStatus === 'DUE FOR INSPECTION') {
         statusConfig = {
             title: 'DUE FOR INSPECTION',
             bgColor: 'bg-red-600',
             IconComponent: AlertTriangle,
         };
-    } else if (asset.status === 'Defective' || asset.status === 'Out of Service') {
+    } else if (rawStatus.includes('MAINT') || rawStatus === 'UNDER MAINTENANCE') {
         statusConfig = {
-            title: asset.status ? asset.status.toUpperCase() : 'DEFECTIVE',
+            title: 'UNDER MAINTENANCE',
+            bgColor: 'bg-orange-600',
+            IconComponent: AlertTriangle,
+        };
+    } else if (rawStatus.includes('FAIL') || rawStatus === 'FAILED' || rawStatus === 'DEFECTIVE') {
+        statusConfig = {
+            title: 'FAILED',
             bgColor: 'bg-red-700',
             IconComponent: AlertTriangle,
         };
@@ -223,7 +237,7 @@ const PublicAssetView = () => {
                             <div>
                                 <p className="text-sm text-gray-500">Last Inspected</p>
                                 <p className="font-semibold text-gray-900">
-                                    {asset.last_inspection_date ? formatDateDDMMYYYY(asset.last_inspection_date) : 'Never'}
+                                    {asset.last_inspection_date ? formatDateDDMMYYYY(asset.last_inspection_date) : 'Never (No prior inspection logs exist)'}
                                 </p>
                                 {asset.Inspections && asset.Inspections[0]?.User?.name && (
                                     <p className="text-xs text-brand-600 font-medium mt-1">
