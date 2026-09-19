@@ -83,14 +83,6 @@ exports.submitInspection = async (req, res) => {
             inspection_date: new Date()
         });
 
-        // Update Asset Status & Dates
-        let newAssetStatus = asset.status;
-        if (status === 'Fail' || status === 'Maintenance') {
-            newAssetStatus = 'Maintenance Required';
-        } else if (status === 'Pass') {
-            newAssetStatus = 'Operational';
-        }
-
         // Calculate next due date dynamically based on the submitted inspection type
         const nextDue = new Date();
         const inspType = findings?.inspection_type || 'Routine';
@@ -100,6 +92,25 @@ exports.submitInspection = async (req, res) => {
             nextDue.setFullYear(nextDue.getFullYear() + 1);
         } else {
             nextDue.setMonth(nextDue.getMonth() + 1); // Monthly/Routine/Surprise
+        }
+
+        // Update Asset Status & Dates
+        const upperStatus = (status || '').toUpperCase();
+        let newAssetStatus = 'OPERATIONAL';
+        if (upperStatus.includes('FAIL')) {
+            newAssetStatus = 'FAILED';
+        } else if (upperStatus.includes('MAINT')) {
+            newAssetStatus = 'UNDER MAINTENANCE';
+        } else {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dueCheck = new Date(nextDue);
+            dueCheck.setHours(0, 0, 0, 0);
+            if (dueCheck < today) {
+                newAssetStatus = 'DUE FOR INSPECTION';
+            } else {
+                newAssetStatus = 'OPERATIONAL';
+            }
         }
 
         // Prepare update object with fallback to existing values if not provided

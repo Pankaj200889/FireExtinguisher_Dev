@@ -128,10 +128,13 @@ const Dashboard = () => {
 
         // 2. Calculate Top-Level Card Stats (Global)
         const total = filtered.length;
-        const operational = filtered.filter(a => a.status === 'Operational').length;
-        const attention = total - operational;
+        const operational = filtered.filter(a => (a.status || '').toUpperCase() === 'OPERATIONAL').length;
+        const dueForInspection = filtered.filter(a => (a.status || '').toUpperCase() === 'DUE FOR INSPECTION').length;
+        const pendingInspection = filtered.filter(a => (a.status || '').toUpperCase() === 'PENDING INSPECTION').length;
+        const underMaintenance = filtered.filter(a => (a.status || '').toUpperCase().includes('MAINT')).length;
+        const failed = filtered.filter(a => (a.status || '').toUpperCase().includes('FAIL')).length;
 
-        setStats({ total, operational, attention });
+        setStats({ total, operational, dueForInspection, pendingInspection, underMaintenance, failed, attention: total - operational });
 
         // 3. Calculate Category Breakdown for Analytics
         const allCats = ['Fire Extinguisher', 'Fire Hose Reel', 'Hydrant Hose Reel', 'Fire Sand Bucket'];
@@ -268,14 +271,22 @@ const Dashboard = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-slate-900/50 rounded-2xl p-4 border border-white/5">
-                                    <p className="text-gray-400 text-xs font-semibold uppercase mb-1">Operational</p>
-                                    <p className="text-3xl font-bold text-green-400">{loading ? '-' : stats.operational}</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+                                <div className="bg-slate-900/50 rounded-xl p-3 border border-white/5">
+                                    <p className="text-gray-400 text-[10px] font-semibold uppercase mb-1">Operational</p>
+                                    <p className="text-2xl font-bold text-green-400">{loading ? '-' : stats.operational}</p>
                                 </div>
-                                <div className="bg-slate-900/50 rounded-2xl p-4 border border-white/5">
-                                    <p className="text-gray-400 text-xs font-semibold uppercase mb-1">Attention Needed</p>
-                                    <p className="text-3xl font-bold text-red-500">{loading ? '-' : stats.attention}</p>
+                                <div className="bg-slate-900/50 rounded-xl p-3 border border-white/5">
+                                    <p className="text-gray-400 text-[10px] font-semibold uppercase mb-1">Due Inspection</p>
+                                    <p className="text-2xl font-bold text-red-400">{loading ? '-' : stats.dueForInspection}</p>
+                                </div>
+                                <div className="bg-slate-900/50 rounded-xl p-3 border border-white/5">
+                                    <p className="text-gray-400 text-[10px] font-semibold uppercase mb-1">Pending Check</p>
+                                    <p className="text-2xl font-bold text-yellow-400">{loading ? '-' : stats.pendingInspection}</p>
+                                </div>
+                                <div className="bg-slate-900/50 rounded-xl p-3 border border-white/5">
+                                    <p className="text-gray-400 text-[10px] font-semibold uppercase mb-1">Maint / Fail</p>
+                                    <p className="text-2xl font-bold text-orange-400">{loading ? '-' : (stats.underMaintenance + stats.failed)}</p>
                                 </div>
                             </div>
                         </div>
