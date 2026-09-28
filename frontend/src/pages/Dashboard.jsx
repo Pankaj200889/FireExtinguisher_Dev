@@ -55,7 +55,15 @@ const Dashboard = () => {
     const [selectedCategory, setSelectedCategory] = React.useState('All');
 
     // Stats State
-    const [stats, setStats] = React.useState({ total: 0, operational: 0, attention: 0 });
+    const [stats, setStats] = React.useState({
+        total: 0,
+        operational: 0,
+        dueForInspection: 0,
+        pendingInspection: 0,
+        underMaintenance: 0,
+        failed: 0,
+        attention: 0
+    });
     const [categoryStats, setCategoryStats] = React.useState({});
     const [overallHealth, setOverallHealth] = React.useState(0);
     const [company, setCompany] = React.useState(null);
@@ -118,7 +126,20 @@ const Dashboard = () => {
             return;
         }
 
-        if (!assets.length) return;
+        if (!assets.length) {
+            setStats({
+                total: 0,
+                operational: 0,
+                dueForInspection: 0,
+                pendingInspection: 0,
+                underMaintenance: 0,
+                failed: 0,
+                attention: 0
+            });
+            setCategoryStats({});
+            setOverallHealth(0);
+            return;
+        }
 
         // Global Logic for Admin
         // 1. Filter based on selection
@@ -274,19 +295,19 @@ const Dashboard = () => {
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
                                 <div className="bg-slate-900/50 rounded-xl p-3 border border-white/5">
                                     <p className="text-gray-400 text-[10px] font-semibold uppercase mb-1">Operational</p>
-                                    <p className="text-2xl font-bold text-green-400">{loading ? '-' : stats.operational}</p>
+                                    <p className="text-2xl font-bold text-green-400">{loading ? '-' : (stats.operational || 0)}</p>
                                 </div>
                                 <div className="bg-slate-900/50 rounded-xl p-3 border border-white/5">
                                     <p className="text-gray-400 text-[10px] font-semibold uppercase mb-1">Due Inspection</p>
-                                    <p className="text-2xl font-bold text-red-400">{loading ? '-' : stats.dueForInspection}</p>
+                                    <p className="text-2xl font-bold text-red-400">{loading ? '-' : (stats.dueForInspection || 0)}</p>
                                 </div>
                                 <div className="bg-slate-900/50 rounded-xl p-3 border border-white/5">
                                     <p className="text-gray-400 text-[10px] font-semibold uppercase mb-1">Pending Check</p>
-                                    <p className="text-2xl font-bold text-yellow-400">{loading ? '-' : stats.pendingInspection}</p>
+                                    <p className="text-2xl font-bold text-yellow-400">{loading ? '-' : (stats.pendingInspection || 0)}</p>
                                 </div>
                                 <div className="bg-slate-900/50 rounded-xl p-3 border border-white/5">
                                     <p className="text-gray-400 text-[10px] font-semibold uppercase mb-1">Maint / Fail</p>
-                                    <p className="text-2xl font-bold text-orange-400">{loading ? '-' : (stats.underMaintenance + stats.failed)}</p>
+                                    <p className="text-2xl font-bold text-orange-400">{loading ? '-' : ((stats.underMaintenance || 0) + (stats.failed || 0))}</p>
                                 </div>
                             </div>
                         </div>
@@ -335,7 +356,7 @@ const Dashboard = () => {
                                 />
                             </svg>
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-4xl font-bold text-white">{overallHealth}</span>
+                                <span className="text-4xl font-bold text-white">{isNaN(overallHealth) || overallHealth == null ? 0 : overallHealth}</span>
                                 <span className="text-sm text-gray-400 -mt-1">%</span>
                             </div>
                         </div>
@@ -358,25 +379,28 @@ const Dashboard = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {Object.entries(categoryStats).length > 0 ? (
-                        Object.entries(categoryStats).map(([type, data]) => (
-                            <div key={type} className="bg-slate-900/50 rounded-xl p-4 border border-white/5">
-                                <div className="flex justify-between items-start mb-3">
-                                    <span className="text-gray-400 text-sm font-medium">{type === 'Fire Sand Bucket' ? 'Fire Bucket' : type}</span>
-                                    <span className={`text-sm font-bold ${data.health >= 90 ? 'text-green-400' : data.health >= 70 ? 'text-yellow-400' : 'text-red-400'}`}>
-                                        {data.health}%
-                                    </span>
+                        Object.entries(categoryStats).map(([type, data]) => {
+                            const healthVal = isNaN(data?.health) || data?.health == null ? 0 : data.health;
+                            return (
+                                <div key={type} className="bg-slate-900/50 rounded-xl p-4 border border-white/5">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <span className="text-gray-400 text-sm font-medium">{type === 'Fire Sand Bucket' ? 'Fire Bucket' : type}</span>
+                                        <span className={`text-sm font-bold ${healthVal >= 90 ? 'text-green-400' : healthVal >= 70 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                            {healthVal}%
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-slate-800 rounded-full h-2 mb-2">
+                                        <div
+                                            className={`h-2 rounded-full transition-all duration-1000 ${healthVal >= 90 ? 'bg-green-500' : healthVal >= 70 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                            style={{ width: `${healthVal}%` }}
+                                        ></div>
+                                    </div>
+                                    <p className="text-xs text-gray-500 text-right">
+                                        {data?.operational || 0} / {data?.total || 0} {isInspector ? 'Pass' : 'Ops'}
+                                    </p>
                                 </div>
-                                <div className="w-full bg-slate-800 rounded-full h-2 mb-2">
-                                    <div
-                                        className={`h-2 rounded-full transition-all duration-1000 ${data.health >= 90 ? 'bg-green-500' : data.health >= 70 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                                        style={{ width: `${data.health}%` }}
-                                    ></div>
-                                </div>
-                                <p className="text-xs text-gray-500 text-right">
-                                    {data.operational} / {data.total} {isInspector ? 'Pass' : 'Ops'}
-                                </p>
-                            </div>
-                        ))
+                            );
+                        })
                     ) : (
                         <div className="col-span-4 text-center text-gray-500 py-4">No data available</div>
                     )}
